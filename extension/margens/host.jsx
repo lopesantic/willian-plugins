@@ -18,13 +18,15 @@ var WPMargens = (function () {
     }
 
     // JSON plano (só valores simples): ExtendScript não garante JSON nativo.
+    // Sem ternário encadeado: o ExtendScript avalia "a ? b : c ? d : e" errado.
     function out(obj) {
         var parts = [];
         for (var k in obj) {
             if (!obj.hasOwnProperty(k)) continue;
-            var v = obj[k];
-            var s = (typeof v === "number" || typeof v === "boolean") ? String(v)
-                  : (v === null || v === undefined) ? "null" : quote(v);
+            var v = obj[k], s;
+            if (v === null || v === undefined) s = "null";
+            else if (typeof v === "number" || typeof v === "boolean") s = String(v);
+            else s = quote(v);
             parts.push(quote(k) + ":" + s);
         }
         return "{" + parts.join(",") + "}";
