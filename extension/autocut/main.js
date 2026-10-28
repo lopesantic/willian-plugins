@@ -67,10 +67,21 @@
     var db = analysis.db, dur = analysis.duration;
     var y = function (v) { return h - (Math.max(-60, Math.min(0, v)) + 60) / 60 * h; };
 
-    ctx.fillStyle = "rgba(229,72,77,.35)";
-    regions.forEach(function (r) { ctx.fillRect(r.start / dur * w, 0, Math.max(1, (r.end - r.start) / dur * w), h); });
+    // silêncios: faixa clara tracejada; fala: barras em degradê roxo → rosa
+    ctx.fillStyle = "rgba(255,255,255,.06)";
+    ctx.strokeStyle = "rgba(255,255,255,.18)";
+    ctx.setLineDash([3, 3]);
+    regions.forEach(function (r) {
+      var x = r.start / dur * w, rw = Math.max(1, (r.end - r.start) / dur * w);
+      ctx.fillRect(x, 0, rw, h);
+      ctx.strokeRect(x + .5, .5, rw - 1, h - 1);
+    });
+    ctx.setLineDash([]);
 
-    ctx.fillStyle = "#6fa8dc";
+    var grad = ctx.createLinearGradient(0, 0, w, 0);
+    grad.addColorStop(0, "#8b5cf6");
+    grad.addColorStop(1, "#ec4899");
+    ctx.fillStyle = grad;
     var per = db.length / w;
     for (var x = 0; x < w; x++) {
       var peak = -120;
@@ -78,7 +89,7 @@
       ctx.fillRect(x, y(peak), 1, h - y(peak));
     }
 
-    ctx.strokeStyle = "#e5c07b";
+    ctx.strokeStyle = "rgba(255,255,255,.7)";
     ctx.beginPath();
     ctx.moveTo(0, y(+threshold.value));
     ctx.lineTo(w, y(+threshold.value));

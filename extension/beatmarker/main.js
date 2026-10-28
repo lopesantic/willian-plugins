@@ -89,7 +89,7 @@
     var w = ruler.width = ruler.clientWidth * dpr, h = ruler.height = 40 * dpr;
     var ctx = ruler.getContext("2d"), dur = base.duration;
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = "#555";
+    ctx.fillStyle = "rgba(255,255,255,.18)";
     grid.beats.forEach(function (b) { ctx.fillRect(Math.round(b / dur * w), h * 0.55, Math.max(1, dpr), h * 0.45); });
     ctx.fillStyle = MARKER_COLORS[+color.value];
     sel.forEach(function (b) { ctx.fillRect(Math.round(b / dur * w) - dpr, 0, 2 * dpr, h); });

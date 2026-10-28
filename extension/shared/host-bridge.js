@@ -3,6 +3,18 @@
 (function () {
   var cep = window.__adobe_cep__;
 
+  // Sliders: a parte preenchida do trilho (CSS --fill) acompanha o valor, inclusive quando o código muda o valor.
+  function syncRanges() {
+    var list = document.querySelectorAll('input[type="range"]');
+    for (var i = 0; i < list.length; i++) {
+      var r = list[i], min = +r.min || 0, max = r.max === "" ? 100 : +r.max;
+      var pct = max > min ? (r.value - min) / (max - min) * 100 : 0;
+      r.style.setProperty("--fill", pct + "%");
+    }
+  }
+  document.addEventListener("input", syncRanges);
+  setInterval(syncRanges, 250);
+
   // Erro de JavaScript aparece na linha de status do painel, em vez de sumir em silêncio.
   window.addEventListener("error", function (ev) {
     var el = document.getElementById("status");

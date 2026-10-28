@@ -98,6 +98,7 @@
       var sum = document.createElement("summary");
       sum.innerHTML = '<span class="dot"></span><span class="cname"></span><span class="count"></span><span class="sound"></span>';
       sum.querySelector(".dot").style.background = c.css;
+      sum.querySelector(".dot").style.color = c.css;  // o brilho (box-shadow) usa currentColor
       sum.querySelector(".cname").textContent = c.name;
       sum.querySelector(".count").textContent = counts["c" + i] !== undefined ? counts["c" + i] + " marc." : "";
       sum.querySelector(".sound").textContent = r.path ? r.name : "sem som";
