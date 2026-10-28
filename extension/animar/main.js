@@ -17,6 +17,10 @@
   var $ = function (id) { return document.getElementById(id); };
   var canvas = $("graph"), ctx = canvas.getContext("2d"), statusEl = $("status");
   var curve = { name: "Easy Ease", p: [0.33, 0, 0.67, 1] }, scope = "all", items = [], dragging = -1, anim = 0;
+  var SNAP = 0.05, shiftDown = false;
+  window.addEventListener("keydown", function (ev) { if (ev.key === "Shift") shiftDown = true; });
+  window.addEventListener("keyup", function (ev) { if (ev.key === "Shift") shiftDown = false; });
+  window.addEventListener("blur", function () { shiftDown = false; });
 
   function setStatus(text, kind) { statusEl.textContent = text; statusEl.className = "status" + (kind ? " " + kind : ""); }
 
@@ -75,6 +79,14 @@
     ctx.strokeStyle = "rgba(255,255,255,.18)";
     [0, 1].forEach(function (v) { ctx.beginPath(); ctx.moveTo(toX(0), toY(v)); ctx.lineTo(toX(1), toY(v)); ctx.stroke(); });
 
+    // com Shift: mostra os pontos fixos da grade em que a alça vai encaixar
+    if (shiftDown && !curve.fn) {
+      ctx.fillStyle = "rgba(244,114,182,.35)";
+      for (var gx = 0; gx <= 1 + 1e-9; gx += SNAP) {
+        for (var gy = -0.3; gy <= 1.3 + 1e-9; gy += SNAP) { ctx.fillRect(toX(gx) - 1, toY(gy) - 1, 2, 2); }
+      }
+    }
+
     if (!curve.fn) {
       ctx.strokeStyle = "rgba(196,181,253,.6)";
       ctx.setLineDash([4, 3]);
@@ -108,7 +120,8 @@
 
     $("curveName").textContent = "· " + curve.name;
     $("bezierText").textContent = curve.fn ? curve.name + " (função especial)" :
-      "cubic-bezier(" + curve.p.map(function (v) { return v.toFixed(2); }).join(", ") + ")";
+      "cubic-bezier(" + curve.p.map(function (v) { return v.toFixed(2); }).join(", ") + ")" +
+      (shiftDown ? "  · Shift: grade 0,05" : "");
   }
 
   function tick() { anim++; draw(); requestAnimationFrame(tick); }
@@ -133,9 +146,12 @@
     if (dragging < 0) return;
     // soltou o botão fora do painel (o mouseup não chega aqui): para de arrastar
     if (!(ev.buttons & 1)) { dragging = -1; saveSettings(); return; }
-    var p = pos(ev);
-    curve.p[dragging * 2] = Math.round(Math.max(0, Math.min(1, fromX(p[0]))) * 100) / 100;
-    curve.p[dragging * 2 + 1] = Math.round(Math.max(-0.5, Math.min(1.5, fromY(p[1]))) * 100) / 100;
+    var p = pos(ev), x = Math.max(0, Math.min(1, fromX(p[0]))), y = Math.max(-0.5, Math.min(1.5, fromY(p[1])));
+    shiftDown = ev.shiftKey;
+    // Shift: a alça encaixa na grade fixa (passo 0,05), como o Shift do After Effects, para valores precisos e repetíveis
+    if (ev.shiftKey) { x = Math.round(x / SNAP) * SNAP; y = Math.round(y / SNAP) * SNAP; }
+    curve.p[dragging * 2] = Math.round(x * 100) / 100;
+    curve.p[dragging * 2 + 1] = Math.round(y * 100) / 100;
     curve.name = "Personalizada";
     markPreset();
   });
