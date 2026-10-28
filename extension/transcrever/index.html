@@ -40,9 +40,14 @@
     <section class="card">
       <h2>Transcrição <span id="viewTag" class="tag"></span></h2>
       <div class="row">
-        <input type="search" id="search" placeholder="Buscar no texto…">
+        <input type="search" id="search" placeholder="Localizar…">
         <button id="showTimes" class="ghost chip">Tempos</button>
       </div>
+      <div class="row" style="margin-top:6px">
+        <input type="search" id="replaceWith" placeholder="Substituir por…">
+        <button id="replaceAll" class="ghost chip">Substituir tudo</button>
+      </div>
+      <label class="check"><input type="checkbox" id="wholeWord" checked> Só palavra inteira</label>
       <div class="segments" id="segments"></div>
     </section>
 

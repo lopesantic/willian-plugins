@@ -136,6 +136,40 @@
     render();
   }
 
+  // ---------- localizar e substituir ----------
+
+  function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+  // Troca em toda a versão que está na tela (original ou tradução), sem diferenciar maiúsculas.
+  // Se o termo é uma palavra só, troca também dentro de cada palavra e os tempos por palavra continuam valendo;
+  // se tem espaço, a frase alterada passa a repartir o tempo entre as palavras novas.
+  function replaceAll(find, repl, whole) {
+    var re = new RegExp((whole ? "(^|[^\\p{L}\\p{N}])" : "()") + escapeRe(find) + (whole ? "(?=$|[^\\p{L}\\p{N}])" : ""), "giu");
+    var single = !/\s/.test(find), count = 0;
+    current().forEach(function (s) {
+      var n = 0, text = s.text.replace(re, function (m, pre) { n++; return pre + repl; });
+      if (!n) return;
+      count += n;
+      s.text = text;
+      if (single && s.words && s.words.length) {
+        s.words.forEach(function (w) { w.text = w.text.replace(re, function (m, pre) { return pre + repl; }); });
+      } else {
+        s.words = [];
+      }
+    });
+    return count;
+  }
+
+  $("replaceAll").addEventListener("click", function () {
+    var find = $("search").value.trim();
+    if (!find) { setStatus("Digite em Localizar a palavra que quer trocar.", "error"); return; }
+    var n = replaceAll(find, $("replaceWith").value, $("wholeWord").checked);
+    persist();
+    $("search").value = "";
+    render();
+    setStatus(n ? n + " ocorrência(s) de \"" + find + "\" trocadas. As legendas e exportações já saem corrigidas." : "Nada encontrado para \"" + find + "\".", n ? "ok" : "error");
+  });
+
   // ---------- transcrever ----------
 
   function loadTracks() {
