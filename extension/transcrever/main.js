@@ -82,7 +82,7 @@
   function render() {
     var segs = current(), q = $("search").value.trim().toLowerCase();
     segEl.innerHTML = "";
-    $("viewTag").textContent = state.showing === "translated" ? "· tradução" : (state.lang ? "· " + state.lang : "");
+    $("viewTag").textContent = state.showing === "translated" ? "· tradução (" + (state.toLang || $("toLang").value) + ")" : (state.lang ? "· " + state.lang : "");
     var lastSpeaker = null;
     segs.forEach(function (s, i) {
       if (q && s.text.toLowerCase().indexOf(q) < 0) return;
@@ -222,6 +222,9 @@
   // ---------- tradução ----------
 
   $("translate").addEventListener("click", function () {
+    var to = $("toLang").value;
+    if (state.lang && to.split("-")[0] === state.lang) { setStatus("A transcrição já está nesse idioma. Escolha outro para traduzir.", "error"); return; }
+    state.toLang = to;
     busy(true);
     setProgress(0);
     setStatus("Traduzindo…");
@@ -250,11 +253,24 @@
   });
   $("search").addEventListener("input", render);
   $("showTimes").addEventListener("click", function () { state.showTimes = !state.showTimes; $("showTimes").classList.toggle("active", state.showTimes); render(); });
-  $("words").addEventListener("input", function () { $("wordsOut").textContent = $("words").value; });
+  // números 1–12 embaixo do controle: mostram e escolhem quantas palavras vão em cada legenda
+  function showWords() {
+    var n = +$("words").value;
+    $("wordsOut").textContent = n + (n === 1 ? " palavra" : " palavras");
+    Array.prototype.forEach.call($("wordTicks").children, function (t) { t.classList.toggle("on", +t.textContent === n); });
+  }
+  for (var w = 1; w <= 12; w++) {
+    var tick = document.createElement("button");
+    tick.textContent = w;
+    tick.addEventListener("click", function (ev) { $("words").value = ev.target.textContent; showWords(); saveSettings(); });
+    $("wordTicks").appendChild(tick);
+  }
+  $("words").addEventListener("input", showWords);
+  $("words").addEventListener("change", saveSettings);
 
   fillLangs();
   loadSettings();
-  $("wordsOut").textContent = $("words").value;
+  showWords();
   $("showTimes").classList.add("active");
   try {
     var last = JSON.parse(fs.readFileSync(LAST, "utf8"));

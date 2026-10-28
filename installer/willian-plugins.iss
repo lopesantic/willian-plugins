@@ -3,7 +3,7 @@
 ; Instala só para o usuário atual (sem administrador) na pasta de extensões CEP do Premiere
 ; e liga o PlayerDebugMode, que o Premiere exige para painéis não assinados.
 
-#define AppVersion "1.3.0"
+#define AppVersion "1.3.1"
 
 [Setup]
 AppId={{8F3B6C2E-5A41-4C7E-9B0D-2E7A61C4F950}

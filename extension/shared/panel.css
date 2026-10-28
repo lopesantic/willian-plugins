@@ -208,6 +208,13 @@ input[type="search"] {
 .segrow .segtext { flex: 1; min-width: 60%; padding: 2px 4px; border-radius: 6px; outline: none; line-height: 1.5; }
 .segrow .segtext:focus { background: var(--well); box-shadow: 0 0 0 1px rgba(236, 72, 153, .5); }
 
+.ticks { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; margin-top: 6px; }
+.ticks button {
+  padding: 4px 0; border-radius: 6px; font-size: 11px; font-variant-numeric: tabular-nums;
+  background: var(--well); border-color: var(--line); color: var(--muted);
+}
+.ticks button.on { background: var(--grad); border-color: transparent; color: #fff; font-weight: 700; box-shadow: 0 0 10px rgba(236, 72, 153, .5); }
+
 /* ---------- LUT Library ---------- */
 .crumbs { color: var(--muted); font-size: 11px; }
 .crumbs a { color: #f9a8d4; cursor: pointer; }
