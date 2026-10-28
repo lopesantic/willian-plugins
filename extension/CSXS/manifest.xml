@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Willian Plugins: um pacote, um painel por ferramenta. Sem login, sem servidor. -->
-<ExtensionManifest Version="7.0" ExtensionBundleId="com.willian.plugins" ExtensionBundleVersion="0.3.0" ExtensionBundleName="Willian Plugins" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ExtensionManifest Version="7.0" ExtensionBundleId="com.willian.plugins" ExtensionBundleVersion="0.4.0" ExtensionBundleName="Willian Plugins" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ExtensionList>
     <Extension Id="com.willian.plugins.margens" Version="0.1.0"/>
     <Extension Id="com.willian.plugins.autocut" Version="0.1.0"/>
     <Extension Id="com.willian.plugins.beatmarker" Version="0.1.0"/>
+    <Extension Id="com.willian.plugins.autosoundfx" Version="0.1.0"/>
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList><Host Name="PPRO" Version="[25.0,99.9]"/></HostList>
@@ -51,6 +52,20 @@
           <Type>Panel</Type>
           <Menu>Willian - BeatMarker</Menu>
           <Geometry><Size><Height>600</Height><Width>320</Width></Size></Geometry>
+        </UI>
+      </DispatchInfo>
+    </Extension>
+    <Extension Id="com.willian.plugins.autosoundfx">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./autosoundfx/index.html</MainPath>
+          <CEFCommandLine><Parameter>--enable-nodejs</Parameter><Parameter>--mixed-context</Parameter></CEFCommandLine>
+        </Resources>
+        <Lifecycle><AutoVisible>true</AutoVisible></Lifecycle>
+        <UI>
+          <Type>Panel</Type>
+          <Menu>Willian - AutoSoundFX</Menu>
+          <Geometry><Size><Height>620</Height><Width>340</Width></Size></Geometry>
         </UI>
       </DispatchInfo>
     </Extension>
