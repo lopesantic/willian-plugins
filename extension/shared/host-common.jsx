@@ -97,35 +97,39 @@ var WPCommon = (function () {
         return name;
     }
 
-    // Duplica a sequência ativa e abre a cópia: as ferramentas nunca editam a sequência original.
-    function cloneActive(label) {
+    // Backup opcional (o Willian edita na própria sequência; a cópia só existe se ele marcar "Fazer backup antes").
+    // Duplica a sequência ativa como "<nome> (backup <label>)" e continua na original. Devolve o nome do backup.
+    function backupActive(label) {
         var seq = app.project.activeSequence;
         var before = {};
         for (var i = 0; i < app.project.sequences.numSequences; i++) before[app.project.sequences[i].sequenceID] = true;
-        var name = copyName(seq.name, label);
+        var name = copyName(seq.name, "backup " + label);
         seq.clone();
         for (var j = 0; j < app.project.sequences.numSequences; j++) {
             var s = app.project.sequences[j];
             if (!before[s.sequenceID]) {
                 s.name = name;
-                app.project.openSequence(s.sequenceID);
-                return app.project.activeSequence;
+                app.project.openSequence(seq.sequenceID);
+                return name;
             }
         }
-        return null;
+        return "";
     }
 
-    // Apaga a cópia ativa "(<label>)" e volta para a sequência original.
-    function undoCopy(label) {
-        var seq = app.project.activeSequence, re = suffixRe(label);
-        if (!seq || !re.test(seq.name)) return fail("A sequência ativa não é uma cópia do " + label + ".");
-        var originalName = seq.name.replace(re, "");
-        app.project.deleteSequence(seq);
+    // Desfaz pelo backup: apaga a sequência editada e devolve ao backup mais recente o nome original.
+    function restoreBackup(label) {
+        var seq = app.project.activeSequence;
+        if (!seq) return fail("Nenhuma sequência ativa.");
+        var name = seq.name, re = suffixRe("backup " + label), backup = null;
         for (var i = 0; i < app.project.sequences.numSequences; i++) {
             var s = app.project.sequences[i];
-            if (s.name === originalName) { app.project.openSequence(s.sequenceID); break; }
+            if (s.sequenceID !== seq.sequenceID && re.test(s.name) && s.name.replace(re, "") === name) backup = s;
         }
-        return out({ ok: true, sequence: originalName });
+        if (!backup) return fail("Esta sequência não tem backup do " + label + ". Use Ctrl+Z no Premiere para desfazer.");
+        app.project.deleteSequence(seq);
+        backup.name = name;
+        app.project.openSequence(backup.sequenceID);
+        return out({ ok: true, sequence: name });
     }
 
     function deselectAll(seq) {
@@ -145,7 +149,7 @@ var WPCommon = (function () {
     return {
         TICKS: TICKS, out: out, fail: fail, secs: secs, timeAt: timeAt, wrap: wrap,
         tracks: wrap(tracks), exportAudio: wrap(exportAudio),
-        suffixRe: suffixRe, cloneActive: cloneActive, undoCopy: undoCopy,
+        suffixRe: suffixRe, backupActive: backupActive, restoreBackup: wrap(restoreBackup),
         deselectAll: deselectAll, linkClips: linkClips
     };
 })();

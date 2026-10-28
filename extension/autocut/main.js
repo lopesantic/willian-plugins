@@ -13,7 +13,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var trackSel = $("track"), analyzeBtn = $("analyze"), results = $("results");
   var canvas = $("wave"), summary = $("summary"), statusEl = $("status");
-  var threshold = $("threshold"), min = $("min"), pad = $("pad"), mode = $("mode");
+  var threshold = $("threshold"), min = $("min"), pad = $("pad"), mode = $("mode"), backup = $("backup");
   var cutBtn = $("cut"), undoBtn = $("undo");
   var analysis = null, regions = [];
 
@@ -32,10 +32,13 @@
     min.value = s.min || 500;
     pad.value = s.pad || 100;
     mode.value = s.mode || "ripple";
+    backup.checked = !!s.backup;
   }
 
   function saveSettings() {
-    try { localStorage.setItem(STORE, JSON.stringify({ min: +min.value, pad: +pad.value, mode: mode.value })); } catch (e) {}
+    try {
+      localStorage.setItem(STORE, JSON.stringify({ min: +min.value, pad: +pad.value, mode: mode.value, backup: backup.checked }));
+    } catch (e) {}
   }
 
   function fmt(sec) {
@@ -137,9 +140,10 @@
     if (!regions.length) { setStatus("Nenhum silêncio com esses ajustes.", "error"); return; }
     setBusy(true);
     setStatus("Cortando " + regions.length + " silêncios…");
-    WP.call("WPAutoCut.cut", [JSON.stringify(regions), mode.value])
+    WP.call("WPAutoCut.cut", [JSON.stringify(regions), mode.value, backup.checked])
       .then(function (d) {
-        setStatus(d.cuts + " cortes em \"" + d.sequence + "\": " + fmt(d.before) + " → " + fmt(d.after) + ".", "ok");
+        setStatus(d.cuts + " cortes: " + fmt(d.before) + " → " + fmt(d.after) + "." +
+          (d.backup ? " Backup em \"" + d.backup + "\"." : " Sem backup: Ctrl+Z desfaz."), "ok");
       })
       .catch(function (e) { setStatus(e.message, "error"); })
       .then(function () { setBusy(false); });
@@ -148,7 +152,7 @@
   undoBtn.addEventListener("click", function () {
     setBusy(true);
     WP.call("WPAutoCut.undo")
-      .then(function (d) { setStatus("Cópia apagada. Voltou para \"" + d.sequence + "\".", "ok"); })
+      .then(function (d) { setStatus("\"" + d.sequence + "\" voltou ao backup.", "ok"); })
       .catch(function (e) { setStatus(e.message, "error"); })
       .then(function () { setBusy(false); });
   });
@@ -163,6 +167,7 @@
   });
   [threshold, min, pad].forEach(function (el) { el.addEventListener("input", recompute); });
   mode.addEventListener("change", saveSettings);
+  backup.addEventListener("change", saveSettings);
   window.addEventListener("resize", function () { if (analysis) draw(); });
 
   loadSettings();

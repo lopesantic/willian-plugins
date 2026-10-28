@@ -97,15 +97,18 @@ var WPAutoCut = (function () {
 
     // regionsJson: '[{"start":s,"end":e}, ...]' em segundos da sequência.
     // mode: "lift" (deixa buracos), "ripple" (fecha os buracos) ou "razor" (só corta).
-    function cut(regionsJson, mode) {
+    // backup: true guarda uma cópia "(backup AutoCut)" antes; os cortes vão sempre na sequência aberta.
+    function cut(regionsJson, mode, backup) {
         if (mode !== "lift" && mode !== "ripple" && mode !== "razor") return C.fail("Modo inválido: " + mode);
         var regions = eval("(" + regionsJson + ")");
         if (!regions || !regions.length) return C.fail("Nenhum silêncio para cortar.");
-        var original = app.project.activeSequence;
-        if (!original) return C.fail("Nenhuma sequência ativa.");
-
-        var seq = C.cloneActive(LABEL);
-        if (!seq) return C.fail("Não consegui duplicar a sequência.");
+        var seq = app.project.activeSequence;
+        if (!seq) return C.fail("Nenhuma sequência ativa.");
+        var before = secs(seq.end), backupName = "";
+        if (backup) {
+            backupName = C.backupActive(LABEL);
+            if (!backupName) return C.fail("Não consegui fazer o backup da sequência.");
+        }
         app.enableQE();
         var qeSeq = qe.project.getActiveSequence();
         var list = unlockedTracks(seq);
@@ -127,13 +130,14 @@ var WPAutoCut = (function () {
         return C.out({
             ok: true, sequence: seq.name, mode: mode, cuts: cuts, pieces: pieces, linked: linked,
             removed: Math.round(removedSecs * 100) / 100,
-            before: Math.round(secs(original.end) * 100) / 100,
-            after: Math.round(secs(seq.end) * 100) / 100
+            before: Math.round(before * 100) / 100,
+            after: Math.round(secs(seq.end) * 100) / 100,
+            backup: backupName
         });
     }
 
-    // Desfaz: apaga a cópia (AutoCut) ativa e volta para a original.
-    function undo() { return C.undoCopy(LABEL); }
+    // Desfaz pelo backup "(backup AutoCut)"; sem backup, o caminho é o Ctrl+Z do Premiere.
+    function undo() { return C.restoreBackup(LABEL); }
 
     return { tracks: C.tracks, exportAudio: C.exportAudio, cut: C.wrap(cut), undo: C.wrap(undo) };
 })();

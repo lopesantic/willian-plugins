@@ -60,7 +60,8 @@ var WPJCut = (function () {
         return C.out({ ok: true, takes: r.takes.length, missing: r.missing, maxFrames: maxFrames, a2Free: a2Free });
     }
 
-    function make(frames) {
+    // backup: true guarda uma cópia "(backup J-Cut)" antes; os J-cuts vão sempre na sequência aberta.
+    function make(frames, backup) {
         var original = app.project.activeSequence;
         if (!original) return C.fail("Nenhuma sequência ativa.");
         frames = Math.round(Number(frames));
@@ -70,9 +71,13 @@ var WPJCut = (function () {
         if (frames > Math.floor(minDuration(pre.takes) / 2 / fd)) return C.fail("O menor take é curto demais para " + frames + " quadros.");
         if (original.audioTracks.numTracks < 2 || original.audioTracks[1].clips.numItems) return C.fail("A A2 precisa estar vazia.");
 
-        var seq = C.cloneActive(LABEL);
-        if (!seq) return C.fail("Não consegui duplicar a sequência.");
-        var takes = collect(seq).takes, X = frames * fd, i, t, c;
+        var before = secs(original.end), backupName = "";
+        if (backup) {
+            backupName = C.backupActive(LABEL);
+            if (!backupName) return C.fail("Não consegui fazer o backup da sequência.");
+        }
+        var seq = original;
+        var takes = pre.takes, X = frames * fd, i, t, c;
         var V1 = seq.videoTracks[0], A1 = seq.audioTracks[0], A2 = seq.audioTracks[1];
 
         // 1) vídeos: apara a cabeça em X e puxa para a esquerda; o vídeo i começa onde o áudio i-1 termina
@@ -125,12 +130,14 @@ var WPJCut = (function () {
 
         return C.out({
             ok: true, sequence: seq.name, takes: takes.length, frames: frames, linked: linkedCount,
-            before: Math.round(secs(original.end) * 100) / 100,
-            after: Math.round(secs(seq.end) * 100) / 100
+            before: Math.round(before * 100) / 100,
+            after: Math.round(secs(seq.end) * 100) / 100,
+            backup: backupName
         });
     }
 
-    function undo() { return C.undoCopy(LABEL); }
+    // Desfaz pelo backup "(backup J-Cut)"; sem backup, o caminho é o Ctrl+Z do Premiere.
+    function undo() { return C.restoreBackup(LABEL); }
 
     return { check: C.wrap(check), make: C.wrap(make), undo: C.wrap(undo) };
 })();

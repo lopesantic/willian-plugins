@@ -21,13 +21,14 @@
     <label class="field">Áudio antes do corte <output id="framesOut"></output>
       <input type="range" id="frames" min="1" max="30" step="1" value="4">
     </label>
+    <label class="check"><input type="checkbox" id="backup"> Fazer backup antes (guarda uma cópia da sequência)</label>
   </section>
 
-  <button id="make" class="primary">Fazer J-cuts numa cópia</button>
-  <button id="undo" class="ghost">Desfazer (apaga a cópia)</button>
+  <button id="make" class="primary">Fazer J-cuts</button>
+  <button id="undo" class="ghost">Voltar ao backup</button>
 
   <div class="status" id="status">Takes colados com vídeo na V1 e áudio na A1. A A2 precisa estar vazia.</div>
-  <p class="note">Os áudios se alternam entre A1 e A2. Os J-cuts vão numa cópia da sequência, "(J-Cut)".</p>
+  <p class="note">Os J-cuts vão na sequência aberta, com os áudios alternando entre A1 e A2. Com backup, uma cópia "(backup J-Cut)" fica guardada; sem backup, desfaça com Ctrl+Z.</p>
 
   <script src="../shared/host-bridge.js"></script>
   <script src="main.js"></script>

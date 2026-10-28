@@ -1,7 +1,8 @@
 (function () {
   var STORE = "wp.autojcut.frames";
+  var STORE_BACKUP = "wp.autojcut.backup";
   var $ = function (id) { return document.getElementById(id); };
-  var frames = $("frames"), framesOut = $("framesOut"), info = $("info"), statusEl = $("status");
+  var frames = $("frames"), framesOut = $("framesOut"), info = $("info"), statusEl = $("status"), backup = $("backup");
   var buttons = [$("check"), $("make"), $("undo")];
 
   function setStatus(text, kind) {
@@ -30,9 +31,10 @@
   $("make").addEventListener("click", function () {
     setBusy(true);
     setStatus("Fazendo os J-cuts…");
-    WP.call("WPJCut.make", [+frames.value])
+    WP.call("WPJCut.make", [+frames.value, backup.checked])
       .then(function (d) {
-        setStatus(d.takes + " takes em \"" + d.sequence + "\", áudio " + d.frames + " quadros antes de cada corte.", "ok");
+        setStatus(d.takes + " takes com áudio " + d.frames + " quadros antes de cada corte." +
+          (d.backup ? " Backup em \"" + d.backup + "\"." : " Sem backup: Ctrl+Z desfaz."), "ok");
       })
       .catch(function (e) { setStatus(e.message, "error"); })
       .then(function () { setBusy(false); });
@@ -41,15 +43,19 @@
   $("undo").addEventListener("click", function () {
     setBusy(true);
     WP.call("WPJCut.undo")
-      .then(function (d) { setStatus("Cópia apagada. Voltou para \"" + d.sequence + "\".", "ok"); })
+      .then(function (d) { setStatus("\"" + d.sequence + "\" voltou ao backup.", "ok"); })
       .catch(function (e) { setStatus(e.message, "error"); })
       .then(function () { setBusy(false); });
   });
 
   frames.addEventListener("input", showFrames);
   frames.addEventListener("change", function () { try { localStorage.setItem(STORE, frames.value); } catch (e) {} });
+  backup.addEventListener("change", function () { try { localStorage.setItem(STORE_BACKUP, backup.checked ? "1" : "0"); } catch (e) {} });
 
-  try { frames.value = localStorage.getItem(STORE) || 4; } catch (e) {}
+  try {
+    frames.value = localStorage.getItem(STORE) || 4;
+    backup.checked = localStorage.getItem(STORE_BACKUP) === "1";
+  } catch (e) {}
   showFrames();
   WP.loadHost("autojcut/host.jsx").then(check).catch(function (e) { setStatus(e.message, "error"); });
 })();
