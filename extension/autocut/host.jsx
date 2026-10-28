@@ -6,94 +6,18 @@
 //   WPAutoCut.cut('[{"start":4.97,"end":7.18}]', "ripple");
 // Toda função devolve uma string JSON: {"ok":true,...} ou {"ok":false,"error":"..."}.
 
+$.evalFile(File($.fileName).parent.parent.fsName + "/shared/host-common.jsx");
+
 var WPAutoCut = (function () {
-    var TICKS = 254016000000;
+    var C = WPCommon, secs = C.secs, timeAt = C.timeAt;
     var SUFFIX_RE = / \(AutoCut( \d+)?\)$/;
     var EPS = 0.002;
-
-    function quote(s) {
-        return '"' + String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
-    }
-
-    // JSON plano. Sem ternário encadeado: o ExtendScript avalia "a ? b : c ? d : e" errado.
-    function out(obj) {
-        var parts = [];
-        for (var k in obj) {
-            if (!obj.hasOwnProperty(k)) continue;
-            var v = obj[k], s;
-            if (v === null || v === undefined) s = "null";
-            else if (typeof v === "number" || typeof v === "boolean") s = String(v);
-            else s = quote(v);
-            parts.push(quote(k) + ":" + s);
-        }
-        return "{" + parts.join(",") + "}";
-    }
-
-    function fail(msg) { return out({ ok: false, error: msg }); }
-
-    function secs(ticks) { return Number(ticks) / TICKS; }
-
-    function timeAt(seconds) {
-        var t = new Time();
-        t.ticks = String(Math.round(seconds * TICKS));
-        return t;
-    }
 
     function frameDur(seq) { return secs(seq.timebase); }
 
     function snap(seq, seconds) {
         var fd = frameDur(seq);
         return Math.round(seconds / fd) * fd;
-    }
-
-    function wavPreset() {
-        var names = ["Waveform Audio 48kHz 16-bit.epr"];
-        var roots = [Folder(app.path).fsName, "C:/Program Files/Adobe/Adobe Premiere Pro 2026", "C:/Program Files/Adobe/Adobe Premiere Pro 2025"];
-        for (var r = 0; r < roots.length; r++) {
-            var dir = Folder(roots[r] + "/MediaIO/systempresets/3F3F3F3F_57415645");
-            if (!dir.exists) continue;
-            for (var n = 0; n < names.length; n++) {
-                var f = File(dir.fsName + "/" + names[n]);
-                if (f.exists) return f.fsName;
-            }
-        }
-        return null;
-    }
-
-    // Lista as faixas de áudio para o painel escolher a de referência.
-    function tracks() {
-        var seq = app.project.activeSequence;
-        if (!seq) return fail("Nenhuma sequência ativa.");
-        var names = [];
-        for (var i = 0; i < seq.audioTracks.numTracks; i++) {
-            names.push("A" + (i + 1) + (seq.audioTracks[i].clips.numItems ? "" : " (vazia)"));
-        }
-        return out({ ok: true, sequence: seq.name, tracks: names.join("|") });
-    }
-
-    // Exporta o áudio da sequência inteira em WAV. track = "all" ou índice (0 = A1) para exportar só ela.
-    function exportAudio(track, outPath) {
-        var seq = app.project.activeSequence;
-        if (!seq) return fail("Nenhuma sequência ativa.");
-        var preset = wavPreset();
-        if (!preset) return fail("Não achei o preset WAV do Premiere.");
-
-        var a = seq.audioTracks, saved = [];
-        for (var i = 0; i < a.numTracks; i++) saved.push(a[i].isMuted());
-        try {
-            if (track !== "all") {
-                var idx = Number(track);
-                if (!(idx >= 0 && idx < a.numTracks)) return fail("Faixa de áudio inválida: " + track);
-                for (var j = 0; j < a.numTracks; j++) a[j].setMute(j === idx ? 0 : 1);
-            }
-            var file = File(outPath);
-            if (file.exists) file.remove();
-            var res = seq.exportAsMediaDirect(file.fsName, preset, 0);
-            if (!File(outPath).exists) return fail("A exportação do áudio falhou: " + res);
-        } finally {
-            for (var k = 0; k < a.numTracks; k++) a[k].setMute(saved[k] ? 1 : 0);
-        }
-        return out({ ok: true, path: outPath, duration: secs(seq.end) });
     }
 
     // "<nome> (AutoCut)", ou "(AutoCut 2)", "(AutoCut 3)"... se já existir
@@ -210,14 +134,14 @@ var WPAutoCut = (function () {
     // regionsJson: '[{"start":s,"end":e}, ...]' em segundos da sequência.
     // mode: "lift" (deixa buracos), "ripple" (fecha os buracos) ou "razor" (só corta).
     function cut(regionsJson, mode) {
-        if (mode !== "lift" && mode !== "ripple" && mode !== "razor") return fail("Modo inválido: " + mode);
+        if (mode !== "lift" && mode !== "ripple" && mode !== "razor") return C.fail("Modo inválido: " + mode);
         var regions = eval("(" + regionsJson + ")");
-        if (!regions || !regions.length) return fail("Nenhum silêncio para cortar.");
+        if (!regions || !regions.length) return C.fail("Nenhum silêncio para cortar.");
         var original = app.project.activeSequence;
-        if (!original) return fail("Nenhuma sequência ativa.");
+        if (!original) return C.fail("Nenhuma sequência ativa.");
 
         var seq = cloneActive();
-        if (!seq) return fail("Não consegui duplicar a sequência.");
+        if (!seq) return C.fail("Não consegui duplicar a sequência.");
         app.enableQE();
         var qeSeq = qe.project.getActiveSequence();
         var list = unlockedTracks(seq);
@@ -236,7 +160,7 @@ var WPAutoCut = (function () {
             removedSecs += e - s;
         }
         var linked = relink(seq, list);
-        return out({
+        return C.out({
             ok: true, sequence: seq.name, mode: mode, cuts: cuts, pieces: pieces, linked: linked,
             removed: Math.round(removedSecs * 100) / 100,
             before: Math.round(secs(original.end) * 100) / 100,
@@ -247,22 +171,15 @@ var WPAutoCut = (function () {
     // Desfaz: apaga a cópia (AutoCut) ativa e volta para a original.
     function undo() {
         var seq = app.project.activeSequence;
-        if (!seq || !SUFFIX_RE.test(seq.name)) return fail("A sequência ativa não é uma cópia do AutoCut.");
+        if (!seq || !SUFFIX_RE.test(seq.name)) return C.fail("A sequência ativa não é uma cópia do AutoCut.");
         var originalName = seq.name.replace(SUFFIX_RE, "");
         app.project.deleteSequence(seq);
         for (var i = 0; i < app.project.sequences.numSequences; i++) {
             var s = app.project.sequences[i];
             if (s.name === originalName) { app.project.openSequence(s.sequenceID); break; }
         }
-        return out({ ok: true, sequence: originalName });
+        return C.out({ ok: true, sequence: originalName });
     }
 
-    function wrap(fn) {
-        return function () {
-            try { return fn.apply(null, arguments); }
-            catch (e) { return fail(e.toString() + (e.line ? " (linha " + e.line + ")" : "")); }
-        };
-    }
-
-    return { tracks: wrap(tracks), exportAudio: wrap(exportAudio), cut: wrap(cut), undo: wrap(undo) };
+    return { tracks: C.tracks, exportAudio: C.exportAudio, cut: C.wrap(cut), undo: C.wrap(undo) };
 })();
