@@ -55,8 +55,9 @@
       thresholdDb: +threshold.value, minSilenceMs: +min.value, paddingMs: +pad.value
     });
     var total = regions.reduce(function (a, r) { return a + r.end - r.start; }, 0);
-    summary.textContent = regions.length + " silêncios · " + fmt(total) + " de " + fmt(analysis.duration) +
-      " · fica com " + fmt(analysis.duration - total);
+    // o tempo removido em vermelho, como no gráfico
+    summary.innerHTML = regions.length + " silêncios · <span class=\"removed\">−" + fmt(total) + "</span> de " +
+      fmt(analysis.duration) + " · fica com " + fmt(analysis.duration - total);
     draw();
     saveSettings();
   }
@@ -70,25 +71,27 @@
     var db = analysis.db, dur = analysis.duration;
     var y = function (v) { return h - (Math.max(-60, Math.min(0, v)) + 60) / 60 * h; };
 
-    // silêncios: faixa clara tracejada; fala: barras em degradê roxo → rosa
-    ctx.fillStyle = "rgba(255,255,255,.06)";
-    ctx.strokeStyle = "rgba(255,255,255,.18)";
+    // o que vai ser removido fica em vermelho (faixa + barras); o que fica, em degradê roxo → rosa
+    var removed = new Uint8Array(w);
+    ctx.fillStyle = "rgba(239,68,68,.22)";
+    ctx.strokeStyle = "rgba(239,68,68,.75)";
     ctx.setLineDash([3, 3]);
     regions.forEach(function (r) {
-      var x = r.start / dur * w, rw = Math.max(1, (r.end - r.start) / dur * w);
-      ctx.fillRect(x, 0, rw, h);
-      ctx.strokeRect(x + .5, .5, rw - 1, h - 1);
+      var x0 = r.start / dur * w, rw = Math.max(1, (r.end - r.start) / dur * w);
+      ctx.fillRect(x0, 0, rw, h);
+      ctx.strokeRect(x0 + .5, .5, rw - 1, h - 1);
+      for (var px = Math.floor(x0); px < Math.min(w, Math.ceil(x0 + rw)); px++) removed[px] = 1;
     });
     ctx.setLineDash([]);
 
     var grad = ctx.createLinearGradient(0, 0, w, 0);
     grad.addColorStop(0, "#8b5cf6");
     grad.addColorStop(1, "#ec4899");
-    ctx.fillStyle = grad;
     var per = db.length / w;
     for (var x = 0; x < w; x++) {
       var peak = -120;
       for (var i = Math.floor(x * per); i < Math.floor((x + 1) * per) && i < db.length; i++) if (db[i] > peak) peak = db[i];
+      ctx.fillStyle = removed[x] ? "#ef4444" : grad;
       ctx.fillRect(x, y(peak), 1, h - y(peak));
     }
 
