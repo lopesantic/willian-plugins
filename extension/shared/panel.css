@@ -1,0 +1,48 @@
+/* Estilo comum dos painéis. Segue o cinza do Premiere para não destoar. */
+:root {
+  --bg: #232323;
+  --surface: #2e2e2e;
+  --border: #3c3c3c;
+  --text: #d6d6d6;
+  --muted: #8f8f8f;
+  --accent: #2d8ceb;
+  --error: #e5484d;
+  --ok: #3dbf6e;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 12px;
+  background: var(--bg);
+  color: var(--text);
+  font: 12px/1.4 "Segoe UI", system-ui, sans-serif;
+}
+
+h1 { font-size: 13px; margin: 0 0 10px; font-weight: 600; }
+
+.stack { display: flex; flex-direction: column; gap: 6px; }
+.row { display: flex; gap: 6px; }
+.row > * { flex: 1; }
+
+button {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+button:hover { border-color: var(--accent); }
+button.active { border-color: var(--accent); background: #1f3550; }
+button:disabled { opacity: .45; cursor: default; }
+
+.status { margin-top: 10px; min-height: 2.8em; color: var(--muted); }
+.status.error { color: var(--error); }
+.status.ok { color: var(--ok); }
+
+.hidden { display: none !important; }
+.note { margin-top: 12px; color: var(--muted); font-size: 11px; }

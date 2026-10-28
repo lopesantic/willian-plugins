@@ -1,0 +1,35 @@
+# Willian Plugins
+
+Painéis próprios para o Adobe Premiere Pro (CEP). Sem login, sem servidor: tudo roda no computador.
+
+## Instalar (inclusive depois de formatar)
+1. Baixe o `WillianPlugins-Setup-<versão>.exe` mais recente em **Releases** deste repositório.
+2. Rode o instalador (não pede administrador).
+3. Reinicie o Premiere e abra os painéis em **Janela > Extensões**.
+
+O instalador copia os painéis para `%APPDATA%\Adobe\CEP\extensions\com.willian.plugins` e liga o
+`PlayerDebugMode` do CEP (necessário para painéis não assinados). Desinstala pelo Painel de Controle.
+
+## Painéis
+| Painel | Faz | Estado |
+|---|---|---|
+| Margens | guia de área segura (Reels, TikTok, Shorts) numa faixa no topo da sequência 9:16 | 0.1.0 |
+| AutoCut | corta silêncios | planejado |
+| BeatMarker | marcadores nas batidas da música | planejado |
+| AutoSoundFX | SFX por cor de marcador | planejado |
+| AutoJCut | J-cuts entre takes | planejado |
+| LUT Library | biblioteca e prévia de LUTs .cube | planejado |
+
+## Pelo Claude Bridge
+Cada painel tem um `host.jsx` com as funções num objeto global. Exemplo:
+```
+$.evalFile("<extensão>/margens/host.jsx");
+WPMargens.apply("reels", "<extensão>/assets/guides");
+```
+
+## Desenvolvimento
+- `extension/` é o pacote CEP (um `manifest.xml`, uma pasta por painel, `shared/` comum).
+- `python -I tools/make_guides.py` gera os PNGs das margens.
+- `tools/dev-install.ps1` copia `extension/` para a pasta CEP para testar.
+- `ISCC.exe installer\willian-plugins.iss` gera `dist\WillianPlugins-Setup-<versão>.exe`
+  (Inno Setup 6). A versão fica no `.iss` e no `manifest.xml`.

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Margens</title>
+  <link rel="stylesheet" href="../shared/panel.css">
+</head>
+<body>
+  <h1>Margens · área segura</h1>
+
+  <div class="stack" id="platforms">
+    <button data-key="reels">Instagram Reels</button>
+    <button data-key="tiktok">TikTok</button>
+    <button data-key="shorts">YouTube Shorts</button>
+  </div>
+
+  <div class="row hidden" id="controls" style="margin-top:10px">
+    <button id="toggle">Esconder guia</button>
+    <button id="remove">Remover guia</button>
+  </div>
+
+  <div class="status" id="status">Abra uma sequência vertical (9:16) e escolha a plataforma.</div>
+
+  <p class="note">O guia fica numa faixa de vídeo no topo e não deve ir para o render: remova antes de exportar.</p>
+
+  <script src="../shared/host-bridge.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
