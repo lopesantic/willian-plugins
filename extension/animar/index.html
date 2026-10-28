@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Animar</title>
+  <link rel="stylesheet" href="../shared/panel.css">
+</head>
+<body>
+  <header class="wp-header">
+    <div class="wp-mark">W</div>
+    <div><div class="wp-title">Animar</div><div class="wp-sub">Curvas de animação como no After Effects</div></div>
+  </header>
+
+  <section class="card">
+    <h2>Curva <span class="tag" id="curveName"></span></h2>
+    <canvas id="graph" width="300" height="220"></canvas>
+    <div class="summary" id="bezierText" style="font-family: monospace"></div>
+    <div class="presets-grid" id="presets"></div>
+    <div class="row" style="margin-top:8px">
+      <input type="search" id="presetName" placeholder="Nome da curva…">
+      <button id="savePreset" class="ghost chip">Salvar curva</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Aplicar em</h2>
+    <div class="row seg">
+      <button data-scope="all" class="ghost">Todos os keyframes</button>
+      <button data-scope="playhead" class="ghost">Só o par no cursor</button>
+    </div>
+    <div class="stack" id="props" style="margin-top:10px"></div>
+    <button id="refresh" class="ghost">Ler keyframes dos clipes selecionados</button>
+  </section>
+
+  <button id="apply" class="primary">Aplicar curva</button>
+  <button id="restore" class="ghost">Restaurar keyframes originais</button>
+
+  <div class="status" id="status">Selecione na timeline um clipe com keyframes e escolha a curva.</div>
+  <p class="note">A curva é gravada com um keyframe por quadro entre os seus keyframes (o Premiere não deixa ajustar as alças por código). "Restaurar" volta aos seus keyframes.</p>
+
+  <script src="../shared/host-bridge.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

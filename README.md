@@ -19,6 +19,7 @@ O instalador copia os painéis para `%APPDATA%\Adobe\CEP\extensions\com.willian.
 | AutoSoundFX | um som por cor de marcador (volume, âncora início/fim, ajuste, faixa, trecho), biblioteca de sons, desfazer | 0.1.0 |
 | AutoJCut | J-cuts entre takes colados (V1/A1) numa cópia "(J-Cut)", áudios alternando A1/A2 | 0.1.0 |
 | Transcrever | transcreve a faixa de áudio escolhida no PC (whisper.cpp, CUDA): 99 idiomas, modos Chita/Golfinho/Baleia, locutores, para inglês, restaurar áudio; legendas na faixa de captions com N palavras; exporta SRT, TXT, VTT, CSV, DOCX, PDF; tradução online | 0.1.0 |
+| Animar | curvas de animação estilo After Effects nos keyframes (editor de alças, Easy Ease, Ultrapassar, Elástico, Quique, curvas salvas), gravadas quadro a quadro; restaura os originais | 0.1.0 |
 | LUT Library | pasta de .cube com prévia no quadro atual, favoritos, intensidade e aplicação no Lumetri dos clipes selecionados | 0.1.0 |
 
 ## Pelo Claude Bridge
