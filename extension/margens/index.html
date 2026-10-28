@@ -6,21 +6,35 @@
   <link rel="stylesheet" href="../shared/panel.css">
 </head>
 <body>
-  <h1>Margens · área segura</h1>
+  <header class="wp-header">
+    <div class="wp-mark">W</div>
+    <div><div class="wp-title">Margens</div><div class="wp-sub">Área segura 9:16</div></div>
+  </header>
 
-  <div class="stack" id="platforms">
-    <button data-key="reels">Instagram Reels</button>
-    <button data-key="tiktok">TikTok</button>
-    <button data-key="shorts">YouTube Shorts</button>
-  </div>
+  <section class="card">
+    <h2>Plataforma</h2>
+    <div class="stack" id="platforms">
+      <button class="platform" data-key="reels">
+        <svg width="18" height="28" viewBox="0 0 18 28"><rect x="1" y="1" width="16" height="26" rx="3" fill="none" stroke="currentColor" stroke-opacity=".5"/><rect x="2.5" y="5" width="12" height="13" rx="1" fill="currentColor" fill-opacity=".35"/></svg>
+        <span><span class="pname">Instagram Reels</span><span class="pdesc">895 × 980 px livres</span></span>
+      </button>
+      <button class="platform" data-key="tiktok">
+        <svg width="18" height="28" viewBox="0 0 18 28"><rect x="1" y="1" width="16" height="26" rx="3" fill="none" stroke="currentColor" stroke-opacity=".5"/><rect x="3" y="4.5" width="11.5" height="13.5" rx="1" fill="currentColor" fill-opacity=".35"/></svg>
+        <span><span class="pname">TikTok</span><span class="pdesc">820 × 1020 px livres</span></span>
+      </button>
+      <button class="platform" data-key="shorts">
+        <svg width="18" height="28" viewBox="0 0 18 28"><rect x="1" y="1" width="16" height="26" rx="3" fill="none" stroke="currentColor" stroke-opacity=".5"/><rect x="2" y="5" width="12" height="12.5" rx="1" fill="currentColor" fill-opacity=".35"/></svg>
+        <span><span class="pname">YouTube Shorts</span><span class="pdesc">840 × 960 px livres</span></span>
+      </button>
+    </div>
 
-  <div class="row hidden" id="controls" style="margin-top:10px">
-    <button id="toggle">Esconder guia</button>
-    <button id="remove">Remover guia</button>
-  </div>
+    <div class="row hidden" id="controls" style="margin-top:8px">
+      <button id="toggle" class="ghost">Esconder guia</button>
+      <button id="remove" class="ghost">Remover guia</button>
+    </div>
+  </section>
 
   <div class="status" id="status">Abra uma sequência vertical (9:16) e escolha a plataforma.</div>
-
   <p class="note">O guia fica numa faixa de vídeo no topo e não deve ir para o render: remova antes de exportar.</p>
 
   <script src="../shared/host-bridge.js"></script>

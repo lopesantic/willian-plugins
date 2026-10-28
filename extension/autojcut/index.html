@@ -6,17 +6,25 @@
   <link rel="stylesheet" href="../shared/panel.css">
 </head>
 <body>
-  <h1>AutoJCut · J-cut entre takes</h1>
+  <header class="wp-header">
+    <div class="wp-mark">W</div>
+    <div><div class="wp-title">AutoJCut</div><div class="wp-sub">J-cut entre takes</div></div>
+  </header>
 
-  <button id="check">Ler os takes da sequência</button>
-  <div class="summary" id="info"></div>
+  <section class="card">
+    <h2>Takes</h2>
+    <div class="summary" id="info" style="margin-top:0">—</div>
+    <button id="check" class="ghost">Ler os takes da sequência</button>
+  </section>
 
-  <label class="field">Áudio antes do corte <output id="framesOut"></output>
-    <input type="range" id="frames" min="1" max="30" step="1" value="4">
-  </label>
+  <section class="card">
+    <label class="field">Áudio antes do corte <output id="framesOut"></output>
+      <input type="range" id="frames" min="1" max="30" step="1" value="4">
+    </label>
+  </section>
 
   <button id="make" class="primary">Fazer J-cuts numa cópia</button>
-  <button id="undo">Desfazer (apaga a cópia)</button>
+  <button id="undo" class="ghost">Desfazer (apaga a cópia)</button>
 
   <div class="status" id="status">Takes colados com vídeo na V1 e áudio na A1. A A2 precisa estar vazia.</div>
   <p class="note">Os áudios se alternam entre A1 e A2. Os J-cuts vão numa cópia da sequência, "(J-Cut)".</p>

@@ -6,56 +6,66 @@
   <link rel="stylesheet" href="../shared/panel.css">
 </head>
 <body>
-  <h1>BeatMarker · marcadores na batida</h1>
+  <header class="wp-header">
+    <div class="wp-mark">W</div>
+    <div><div class="wp-title">BeatMarker</div><div class="wp-sub">Marcadores na batida</div></div>
+  </header>
 
-  <label class="field">Faixa da música
-    <select id="track"><option value="all">Todas as faixas (mixagem)</option></select>
-  </label>
-  <button id="analyze" class="primary">Analisar música</button>
+  <section class="card">
+    <label class="field">Faixa da música
+      <select id="track"><option value="all">Todas as faixas (mixagem)</option></select>
+    </label>
+    <button id="analyze" class="primary">Analisar música</button>
+  </section>
 
   <div id="results" class="hidden">
-    <div class="bpm-row">
-      <span class="bpm" id="bpm">—</span>
-      <button id="half" title="Metade do tempo">÷2</button>
-      <button id="double" title="Dobro do tempo">×2</button>
-    </div>
-    <canvas id="ruler" height="40"></canvas>
-    <div class="summary" id="summary"></div>
+    <section class="card">
+      <div class="bpm-row">
+        <span class="bpm" id="bpm">—</span>
+        <button id="half" class="ghost" title="Metade do tempo">÷2</button>
+        <button id="double" class="ghost" title="Dobro do tempo">×2</button>
+      </div>
+      <canvas id="ruler" height="40"></canvas>
+      <div class="summary" id="summary"></div>
+    </section>
 
-    <label class="field">Densidade
-      <select id="density">
-        <option value="16">1 a cada 16 batidas</option>
-        <option value="8">1 a cada 8 batidas</option>
-        <option value="4">1 a cada 4 batidas (compasso)</option>
-        <option value="2">1 a cada 2 batidas</option>
-        <option value="1">Toda batida</option>
-        <option value="0.5">2 por batida</option>
-      </select>
-    </label>
-    <label class="field">Começar em
-      <select id="phase">
-        <option value="0">Tempo forte (automático)</option>
-        <option value="1">Tempo forte + 1 batida</option>
-        <option value="2">Tempo forte + 2 batidas</option>
-        <option value="3">Tempo forte + 3 batidas</option>
-      </select>
-    </label>
-    <label class="field">Cor do marcador
-      <select id="color">
-        <option value="0">Verde</option>
-        <option value="1">Vermelho</option>
-        <option value="2">Roxo</option>
-        <option value="3">Laranja</option>
-        <option value="4">Amarelo</option>
-        <option value="5">Branco</option>
-        <option value="6">Azul</option>
-        <option value="7">Ciano</option>
-      </select>
-    </label>
-    <label class="check"><input type="checkbox" id="replace" checked> Substituir os marcadores do BeatMarker desta cor</label>
+    <section class="card">
+      <h2>Marcadores</h2>
+      <label class="field">Densidade
+        <select id="density">
+          <option value="16">1 a cada 16 batidas</option>
+          <option value="8">1 a cada 8 batidas</option>
+          <option value="4">1 a cada 4 batidas (compasso)</option>
+          <option value="2">1 a cada 2 batidas</option>
+          <option value="1">Toda batida</option>
+          <option value="0.5">2 por batida</option>
+        </select>
+      </label>
+      <label class="field">Começar em
+        <select id="phase">
+          <option value="0">Tempo forte (automático)</option>
+          <option value="1">Tempo forte + 1 batida</option>
+          <option value="2">Tempo forte + 2 batidas</option>
+          <option value="3">Tempo forte + 3 batidas</option>
+        </select>
+      </label>
+      <label class="field">Cor do marcador
+        <select id="color">
+          <option value="0">Verde</option>
+          <option value="1">Vermelho</option>
+          <option value="2">Roxo</option>
+          <option value="3">Laranja</option>
+          <option value="4">Amarelo</option>
+          <option value="5">Branco</option>
+          <option value="6">Azul</option>
+          <option value="7">Ciano</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="replace" checked> Substituir os marcadores do BeatMarker desta cor</label>
+    </section>
 
     <button id="create" class="primary">Criar marcadores</button>
-    <button id="remove">Remover todos os marcadores do BeatMarker</button>
+    <button id="remove" class="ghost">Remover todos os marcadores do BeatMarker</button>
   </div>
 
   <div class="status" id="status">Abra a sequência com a música e clique em Analisar.</div>

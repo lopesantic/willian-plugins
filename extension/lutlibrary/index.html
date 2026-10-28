@@ -6,21 +6,27 @@
   <link rel="stylesheet" href="../shared/panel.css">
 </head>
 <body>
-  <h1>LUT Library · prévia e aplicação</h1>
+  <header class="wp-header">
+    <div class="wp-mark">W</div>
+    <div><div class="wp-title">LUT Library</div><div class="wp-sub">Prévia e aplicação</div></div>
+  </header>
 
-  <div class="row">
-    <button id="folder">Escolher pasta de LUTs</button>
-    <button id="frame">Atualizar quadro</button>
-  </div>
-  <div class="crumbs" id="crumbs"></div>
-  <div class="subfolders" id="subfolders"></div>
+  <section class="card">
+    <div class="row">
+      <button id="folder" class="ghost">Escolher pasta</button>
+      <button id="frame" class="ghost">Atualizar quadro</button>
+    </div>
+    <div class="crumbs" id="crumbs" style="margin-top:8px"></div>
+    <div class="subfolders" id="subfolders"></div>
+    <label class="check"><input type="checkbox" id="onlyFav"> Só favoritos</label>
+    <div class="lut-grid" id="grid"></div>
+  </section>
 
-  <label class="check"><input type="checkbox" id="onlyFav"> Só favoritos</label>
-  <div class="lut-grid" id="grid"></div>
-
-  <label class="field">Intensidade <output id="intensityOut"></output>
-    <input type="range" id="intensity" min="0" max="100" step="5" value="100">
-  </label>
+  <section class="card">
+    <label class="field">Intensidade <output id="intensityOut"></output>
+      <input type="range" id="intensity" min="0" max="100" step="5" value="100">
+    </label>
+  </section>
   <button id="apply" class="primary">Aplicar nos clipes selecionados</button>
 
   <div class="status" id="status">Escolha a pasta onde ficam seus .cube.</div>

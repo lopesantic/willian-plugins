@@ -1,101 +1,190 @@
-/* Estilo comum dos painéis. Segue o cinza do Premiere para não destoar. */
+/* Willian Plugins — estilo comum dos painéis.
+   Base ardósia com a cor da placa do Willian (#323944) e um único acento âmbar para ação e estado ativo.
+   Títulos em Neue Haas Display quando instalada; senão Segoe UI Variable. */
 :root {
-  --bg: #232323;
-  --surface: #2e2e2e;
-  --border: #3c3c3c;
-  --text: #d6d6d6;
-  --muted: #8f8f8f;
-  --accent: #2d8ceb;
-  --error: #e5484d;
-  --ok: #3dbf6e;
+  --bg: #17191e;
+  --surface: #1f2228;
+  --raised: #323944;          /* placa do Willian */
+  --raised-hover: #3b4350;
+  --border: #2c313a;
+  --border-strong: #434b59;
+  --text: #eceef2;
+  --muted: #8d95a5;
+  --faint: #5d6575;
+  --accent: #ffb547;
+  --accent-ink: #1b1406;
+  --accent-soft: rgba(255, 181, 71, .14);
+  --error: #ff6b6b;
+  --ok: #4ad28a;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --display: "Neue Haas Display", "NeueHaasDisplay-Mediu", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
 }
 
 * { box-sizing: border-box; }
 
+html, body { background: var(--bg); }
 body {
   margin: 0;
-  padding: 12px;
-  background: var(--bg);
+  padding: 0 12px 12px;
   color: var(--text);
-  font: 12px/1.4 "Segoe UI", system-ui, sans-serif;
+  font: 12px/1.45 var(--ui);
+  -webkit-font-smoothing: antialiased;
 }
 
-h1 { font-size: 13px; margin: 0 0 10px; font-weight: 600; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--raised); border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- cabeçalho ---------- */
+.wp-header {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 -12px 10px; padding: 12px 12px 10px;
+  background: linear-gradient(var(--bg) 80%, rgba(23, 25, 30, 0));
+}
+.wp-mark {
+  flex: none; width: 28px; height: 28px; border-radius: 7px;
+  display: grid; place-items: center;
+  background: var(--raised); color: var(--accent);
+  font: 600 15px/1 var(--display); letter-spacing: -.02em;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06);
+}
+.wp-title { font: 500 15px/1.1 var(--display); letter-spacing: .01em; }
+.wp-sub { margin-top: 2px; color: var(--muted); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; }
+h1 { display: none; } /* título antigo; o cabeçalho substitui */
+
+/* ---------- cartões ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  margin-bottom: 8px;
+}
+.card > h2, .section-label {
+  margin: 0 0 8px; color: var(--muted);
+  font: 600 10px/1 var(--ui); letter-spacing: .1em; text-transform: uppercase;
+}
 
 .stack { display: flex; flex-direction: column; gap: 6px; }
 .row { display: flex; gap: 6px; }
-.row > * { flex: 1; }
+.row > * { flex: 1; min-width: 0; }
 
+/* ---------- botões ---------- */
 button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--raised);
   color: var(--text);
-  font: inherit;
+  font: 500 12px/1.2 var(--ui);
   cursor: pointer;
-  text-align: left;
+  transition: background .12s, border-color .12s, transform .06s;
 }
-button:hover { border-color: var(--accent); }
-button.active { border-color: var(--accent); background: #1f3550; }
-button:disabled { opacity: .45; cursor: default; }
-
-.status { margin-top: 10px; min-height: 2.8em; color: var(--muted); }
-.status.error { color: var(--error); }
-.status.ok { color: var(--ok); }
-
-button.primary { background: var(--accent); border-color: var(--accent); color: #fff; text-align: center; }
-button.primary:hover { filter: brightness(1.1); }
-body > button, #results > button { display: block; width: 100%; margin-top: 8px; }
-
-.field { display: block; margin-top: 10px; color: var(--muted); }
-.field output { float: right; color: var(--text); }
-select, input[type="range"] { display: block; width: 100%; margin-top: 4px; }
-select {
-  padding: 6px;
-  background: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font: inherit;
+button:hover { background: var(--raised-hover); }
+button:active { transform: translateY(1px); }
+button:disabled { opacity: .4; cursor: default; transform: none; }
+button.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+button.primary {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600;
 }
-input[type="range"] { accent-color: var(--accent); }
+button.primary:hover { filter: brightness(1.06); background: var(--accent); }
+button.ghost { background: transparent; border-color: var(--border); color: var(--muted); }
+button.ghost:hover { color: var(--text); border-color: var(--border-strong); }
+body > button, .card > button, #results > button { display: flex; width: 100%; margin-top: 8px; }
 
-canvas { display: block; width: 100%; height: 90px; margin-top: 10px; background: #1a1a1a; border-radius: 4px; }
-.summary { margin-top: 6px; color: var(--text); }
-.presets { margin-top: 10px; }
-.presets button { text-align: center; }
+/* ---------- campos ---------- */
+.field { display: block; margin-top: 10px; color: var(--muted); font-size: 11px; }
+.field:first-child { margin-top: 0; }
+.field output { float: right; color: var(--text); font-variant-numeric: tabular-nums; }
+select, input[type="number"] {
+  display: block; width: 100%; margin-top: 5px; padding: 7px 28px 7px 9px;
+  background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238d95a5' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 10px center;
+  color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  font: inherit; font-size: 12px; -webkit-appearance: none; appearance: none;
+}
+input[type="number"] { padding-right: 9px; background-image: none; }
+select:focus, input:focus { outline: none; border-color: var(--accent); }
 
-.bpm-row { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
-.bpm-row .bpm { flex: 1; font-size: 18px; font-weight: 600; color: var(--text); }
-.bpm-row button { padding: 4px 10px; text-align: center; }
-#ruler { height: 40px; }
-.check { display: flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--muted); }
+input[type="range"] {
+  display: block; width: 100%; margin: 9px 0 2px; height: 4px;
+  -webkit-appearance: none; appearance: none; background: var(--raised); border-radius: 4px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); border: 3px solid var(--bg); box-shadow: 0 0 0 1px var(--accent);
+  cursor: pointer;
+}
 
-.sfx-rows { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
-.sfx-row { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; }
+.check { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: var(--muted); font-size: 11.5px; cursor: pointer; }
+.check input { accent-color: var(--accent); width: 14px; height: 14px; margin: 0; }
+
+/* ---------- status e notas ---------- */
+.status {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin-top: 10px; padding: 8px 10px; min-height: 34px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--muted);
+}
+.status::before { content: ""; flex: none; width: 7px; height: 7px; margin-top: 5px; border-radius: 50%; background: var(--faint); }
+.status.ok { color: var(--text); }
+.status.ok::before { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.status.error { color: var(--error); border-color: rgba(255, 107, 107, .3); }
+.status.error::before { background: var(--error); }
+.note { margin: 8px 2px 0; color: var(--faint); font-size: 10.5px; }
+.summary { margin-top: 8px; color: var(--text); font-variant-numeric: tabular-nums; }
+.hidden { display: none !important; }
+
+/* ---------- gráficos (waveform, régua) ---------- */
+canvas#wave, canvas#ruler {
+  display: block; width: 100%; margin-top: 8px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+canvas#wave { height: 90px; }
+canvas#ruler { height: 40px; }
+.presets { margin-top: 8px; }
+
+/* ---------- Margens ---------- */
+.platform { justify-content: flex-start; gap: 10px; padding: 9px 10px; text-align: left; }
+.platform svg { flex: none; }
+.platform .pname { display: block; font-weight: 600; }
+.platform .pdesc { display: block; color: var(--muted); font-size: 10.5px; font-weight: 400; }
+.platform.active .pdesc { color: var(--accent); }
+
+/* ---------- BeatMarker ---------- */
+.bpm-row { display: flex; align-items: center; gap: 6px; }
+.bpm-row .bpm { flex: 1; font: 500 24px/1 var(--display); letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.bpm-row .bpm small { color: var(--muted); font: 600 10px var(--ui); letter-spacing: .1em; margin-left: 4px; }
+.bpm-row button { padding: 5px 10px; }
+
+/* ---------- AutoSoundFX ---------- */
+.sfx-rows { display: flex; flex-direction: column; gap: 4px; }
+.sfx-row { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 9px; }
+.sfx-row[open] { border-color: var(--border-strong); background: var(--surface); }
 .sfx-row summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; }
 .sfx-row summary::-webkit-details-marker { display: none; }
-.sfx-row .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
-.sfx-row .cname { width: 64px; }
-.sfx-row .count { width: 52px; color: var(--muted); }
-.sfx-row .sound { flex: 1; text-align: right; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-input[type="number"] {
-  display: block; width: 100%; margin-top: 4px; padding: 5px;
-  background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px; font: inherit;
-}
+.sfx-row .dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.sfx-row .cname { width: 62px; font-weight: 500; }
+.sfx-row .count { width: 54px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sfx-row .sound { flex: 1; text-align: right; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sfx-row[open] summary { margin-bottom: 8px; }
 
-.crumbs { margin-top: 10px; color: var(--muted); }
+/* ---------- LUT Library ---------- */
+.crumbs { color: var(--muted); font-size: 11px; }
 .crumbs a { color: var(--accent); cursor: pointer; }
 .subfolders { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-.chip { padding: 3px 8px; font-size: 11px; }
-.lut-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin-top: 8px; }
-.lut-card { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 4px; cursor: pointer; }
-.lut-card.active { border-color: var(--accent); }
-.lut-card canvas { display: block; width: 100%; height: auto; background: #111; border-radius: 2px; }
-.lut-name { display: flex; justify-content: space-between; gap: 4px; margin-top: 4px; font-size: 11px; overflow: hidden; white-space: nowrap; }
-.star { color: var(--border); cursor: pointer; }
-.star.on { color: #e5c07b; }
-
-.hidden { display: none !important; }
-.note { margin-top: 12px; color: var(--muted); font-size: 11px; }
+.chip { padding: 4px 9px; font-size: 11px; border-radius: 20px; }
+.lut-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; margin-top: 8px; }
+.lut-card {
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 4px; cursor: pointer; transition: border-color .12s, transform .12s;
+}
+.lut-card:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+.lut-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.lut-card canvas { display: block; width: 100%; height: auto; background: #0e0f12; border-radius: 4px; }
+.lut-name { display: flex; justify-content: space-between; gap: 4px; margin: 5px 2px 1px; font-size: 11px; overflow: hidden; white-space: nowrap; }
+.star { color: var(--faint); cursor: pointer; }
+.star.on { color: var(--accent); }

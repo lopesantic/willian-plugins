@@ -6,13 +6,19 @@
   <link rel="stylesheet" href="../shared/panel.css">
 </head>
 <body>
-  <h1>AutoSoundFX · som por cor de marcador</h1>
+  <header class="wp-header">
+    <div class="wp-mark">W</div>
+    <div><div class="wp-title">AutoSoundFX</div><div class="wp-sub">Som por cor de marcador</div></div>
+  </header>
 
-  <button id="refresh">Ler marcadores da sequência</button>
-  <div id="rows" class="sfx-rows"></div>
+  <section class="card">
+    <h2>Cores</h2>
+    <div id="rows" class="sfx-rows"></div>
+    <button id="refresh" class="ghost">Ler marcadores da sequência</button>
+  </section>
 
   <button id="apply" class="primary">Aplicar SFX</button>
-  <button id="remove">Remover SFX inseridos</button>
+  <button id="remove" class="ghost">Remover SFX inseridos</button>
 
   <div class="status" id="status">Marque a sequência com cores e escolha um som para cada cor.</div>
   <p class="note">Se a faixa escolhida estiver ocupada no ponto do marcador, o som vai para a próxima faixa livre acima.</p>
