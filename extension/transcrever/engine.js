@@ -194,6 +194,67 @@
     return { language: (json.result && json.result.language) || "", segments: segs };
   }
 
+  // ---------- precisão do início das falas ----------
+
+  // O Whisper erra o início das frases em até ~0,3 s e o DTW atrasa as palavras (medido: 7,62 contra 7,29 s reais).
+  // Aqui os tempos são encaixados na energia do próprio áudio (janelas de 10 ms): a frase começa onde a voz
+  // sobe acima do ruído de fundo e termina onde ela cai; as palavras perdem o atraso médio medido no arquivo.
+  function refineTimings(wav16, segments) {
+    var buf = fs.readFileSync(wav16), n = Math.floor((buf.length - 44) / 2), win = 160; // 10 ms a 16 kHz
+    var frames = Math.floor(n / win), db = new Float32Array(frames), i, k;
+    for (i = 0; i < frames; i++) {
+      var acc = 0;
+      for (k = 0; k < win; k++) { var v = buf.readInt16LE(44 + (i * win + k) * 2) / 32768; acc += v * v; }
+      db[i] = acc > 1e-12 ? 10 * Math.log10(acc / win) : -120;
+    }
+    var sorted = Array.prototype.slice.call(db).sort(function (a, b) { return a - b; });
+    var floor = Math.max(sorted[Math.floor(frames * 0.1)] || -90, -90), loud = sorted[Math.floor(frames * 0.9)] || -20;
+    // voz = até 30 dB abaixo do nível da fala (e 10 dB acima do ruído); um limiar só relativo ao ruído
+    // confundia o chiado das pausas com fala (medido: fim de frase em 7,04 s com a fala acabando em 4,8 s)
+    var thr = Math.max(floor + 10, loud - 30);
+    var voiced = function (f) { return f >= 0 && f < frames && db[f] > thr; };
+    var fr = function (t) { return Math.max(0, Math.min(frames - 1, Math.round(t * 100))); };
+
+    // início: se já há voz no ponto estimado, volta até onde ela começou; senão, avança até a voz aparecer
+    function onset(t, back, fwd) {
+      var f = fr(t), lim;
+      if (voiced(f)) { lim = fr(t - back); while (f > lim && voiced(f - 1)) f--; return f / 100; }
+      lim = fr(t + fwd);
+      for (; f <= lim; f++) if (voiced(f) && voiced(f + 1) && voiced(f + 2)) return f / 100;
+      return t;
+    }
+    // fim: se há voz no ponto estimado, avança até ela acabar; senão, volta até a última voz
+    function offset(t, back, fwd) {
+      var f = fr(t), lim;
+      if (voiced(f)) { lim = fr(t + fwd); while (f < lim && voiced(f + 1)) f++; return (f + 1) / 100; }
+      lim = fr(t - back);
+      for (; f >= lim; f--) if (voiced(f)) return (f + 1) / 100;
+      return t;
+    }
+
+    var lags = [];
+    segments.forEach(function (s, idx) {
+      var prevEnd = idx ? segments[idx - 1].end : 0;
+      s.start = Math.max(prevEnd, onset(s.start, 0.5, 0.8));
+      // o fim pode estar bem antes do estimado (o modelo small marca o fim só no começo da próxima frase):
+      // a busca para trás vai até o início da própria frase
+      s.end = Math.max(s.start + 0.2, offset(s.end, Math.max(0.8, s.end - s.start), 0.5));
+      if (s.words && s.words.length) lags.push(s.words[0].start - s.start);
+    });
+    lags.sort(function (a, b) { return a - b; });
+    var lag = lags.length ? Math.max(0, Math.min(0.6, lags[Math.floor(lags.length / 2)])) : 0;
+    segments.forEach(function (s) {
+      (s.words || []).forEach(function (w, j) {
+        w.start = j === 0 ? s.start : Math.min(s.end, Math.max(s.start, w.start - lag));
+      });
+      for (var j = 0; j < (s.words || []).length; j++) {
+        if (j && s.words[j].start < s.words[j - 1].start) s.words[j].start = s.words[j - 1].start;
+        s.words[j].end = j + 1 < s.words.length ? s.words[j + 1].start : s.end;
+      }
+    });
+    return { lag: lag, threshold: thr };
+  }
+
   // opts: {wav, language ("auto"|"pt"|...), mode, translate, speakers, onProgress(fração, texto)}
   // speakers: ausente = sem locutores; 0 = detectar quantos; N = exatamente N locutores. restore: limpar ruído antes.
   function transcribe(opts) {
@@ -230,7 +291,9 @@
           p.on("close", function (code) {
             if (code !== 0 || !fs.existsSync(outBase + ".json")) return reject(new Error("O whisper.cpp falhou (" + code + "): " + errTail.slice(-400)));
             var json = JSON.parse(fs.readFileSync(outBase + ".json", "utf8"));
-            resolve(parseFull(json));
+            var result = parseFull(json);
+            result.timing = refineTimings(wav16, result.segments);
+            resolve(result);
           });
         });
       })
@@ -353,7 +416,7 @@
   }
 
   var api = { MODES: MODES, diarize: diarize, assignSpeakers: assignSpeakers, BASE: BASE, engineStatus: engineStatus, ensureEngine: ensureEngine, ensureModel: ensureModel,
-              to16k: to16k, transcribe: transcribe, parseFull: parseFull, download: download, hasNvidia: hasNvidia };
+              to16k: to16k, transcribe: transcribe, refineTimings: refineTimings, parseFull: parseFull, download: download, hasNvidia: hasNvidia };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.WPEngine = api;
 })(this);
