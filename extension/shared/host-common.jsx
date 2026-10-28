@@ -86,8 +86,66 @@ var WPCommon = (function () {
         return out({ ok: true, path: outPath, duration: secs(seq.end) });
     }
 
+    function suffixRe(label) { return new RegExp(" \\(" + label + "( \\d+)?\\)$"); }
+
+    // "<nome> (<label>)", ou "(<label> 2)", "(<label> 3)"... se já existir
+    function copyName(base, label) {
+        var taken = {};
+        for (var i = 0; i < app.project.sequences.numSequences; i++) taken[app.project.sequences[i].name] = true;
+        var name = base + " (" + label + ")";
+        for (var n = 2; taken[name]; n++) name = base + " (" + label + " " + n + ")";
+        return name;
+    }
+
+    // Duplica a sequência ativa e abre a cópia: as ferramentas nunca editam a sequência original.
+    function cloneActive(label) {
+        var seq = app.project.activeSequence;
+        var before = {};
+        for (var i = 0; i < app.project.sequences.numSequences; i++) before[app.project.sequences[i].sequenceID] = true;
+        var name = copyName(seq.name, label);
+        seq.clone();
+        for (var j = 0; j < app.project.sequences.numSequences; j++) {
+            var s = app.project.sequences[j];
+            if (!before[s.sequenceID]) {
+                s.name = name;
+                app.project.openSequence(s.sequenceID);
+                return app.project.activeSequence;
+            }
+        }
+        return null;
+    }
+
+    // Apaga a cópia ativa "(<label>)" e volta para a sequência original.
+    function undoCopy(label) {
+        var seq = app.project.activeSequence, re = suffixRe(label);
+        if (!seq || !re.test(seq.name)) return fail("A sequência ativa não é uma cópia do " + label + ".");
+        var originalName = seq.name.replace(re, "");
+        app.project.deleteSequence(seq);
+        for (var i = 0; i < app.project.sequences.numSequences; i++) {
+            var s = app.project.sequences[i];
+            if (s.name === originalName) { app.project.openSequence(s.sequenceID); break; }
+        }
+        return out({ ok: true, sequence: originalName });
+    }
+
+    function deselectAll(seq) {
+        var sel = seq.getSelection();
+        for (var i = 0; i < sel.length; i++) sel[i].setSelected(false, true);
+    }
+
+    // Vincula um clipe de vídeo aos clipes de áudio dados.
+    function linkClips(seq, video, audios) {
+        deselectAll(seq);
+        video.setSelected(true, true);
+        for (var i = 0; i < audios.length; i++) audios[i].setSelected(true, true);
+        seq.linkSelection();
+        deselectAll(seq);
+    }
+
     return {
         TICKS: TICKS, out: out, fail: fail, secs: secs, timeAt: timeAt, wrap: wrap,
-        tracks: wrap(tracks), exportAudio: wrap(exportAudio)
+        tracks: wrap(tracks), exportAudio: wrap(exportAudio),
+        suffixRe: suffixRe, cloneActive: cloneActive, undoCopy: undoCopy,
+        deselectAll: deselectAll, linkClips: linkClips
     };
 })();

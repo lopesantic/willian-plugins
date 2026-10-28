@@ -10,7 +10,7 @@ $.evalFile(File($.fileName).parent.parent.fsName + "/shared/host-common.jsx");
 
 var WPAutoCut = (function () {
     var C = WPCommon, secs = C.secs, timeAt = C.timeAt;
-    var SUFFIX_RE = / \(AutoCut( \d+)?\)$/;
+    var LABEL = "AutoCut";
     var EPS = 0.002;
 
     function frameDur(seq) { return secs(seq.timebase); }
@@ -18,33 +18,6 @@ var WPAutoCut = (function () {
     function snap(seq, seconds) {
         var fd = frameDur(seq);
         return Math.round(seconds / fd) * fd;
-    }
-
-    // "<nome> (AutoCut)", ou "(AutoCut 2)", "(AutoCut 3)"... se já existir
-    function copyName(base) {
-        var taken = {};
-        for (var i = 0; i < app.project.sequences.numSequences; i++) taken[app.project.sequences[i].name] = true;
-        var name = base + " (AutoCut)";
-        for (var n = 2; taken[name]; n++) name = base + " (AutoCut " + n + ")";
-        return name;
-    }
-
-    // Duplica a sequência ativa e abre a cópia: os cortes nunca vão na sequência original.
-    function cloneActive() {
-        var seq = app.project.activeSequence;
-        var before = {};
-        for (var i = 0; i < app.project.sequences.numSequences; i++) before[app.project.sequences[i].sequenceID] = true;
-        var name = copyName(seq.name);
-        seq.clone();
-        for (var j = 0; j < app.project.sequences.numSequences; j++) {
-            var s = app.project.sequences[j];
-            if (!before[s.sequenceID]) {
-                s.name = name;
-                app.project.openSequence(s.sequenceID);
-                return app.project.activeSequence;
-            }
-        }
-        return null;
     }
 
     function unlockedTracks(seq) {
@@ -96,11 +69,6 @@ var WPAutoCut = (function () {
         }
     }
 
-    function deselectAll(seq) {
-        var sel = seq.getSelection();
-        for (var i = 0; i < sel.length; i++) sel[i].setSelected(false, true);
-    }
-
     // O razor do QE desfaz o vínculo entre vídeo e áudio. Vincula de novo cada pedaço de vídeo
     // aos pedaços de áudio da mesma mídia com o mesmo início e fim.
     function relink(seq, list) {
@@ -121,13 +89,9 @@ var WPAutoCut = (function () {
                     Math.abs(secs(a.end.ticks) - secs(v.end.ticks)) < EPS) mates.push(a);
             }
             if (!mates.length) continue;
-            deselectAll(seq);
-            v.setSelected(true, true);
-            for (j = 0; j < mates.length; j++) mates[j].setSelected(true, true);
-            seq.linkSelection();
+            C.linkClips(seq, v, mates);
             linked++;
         }
-        deselectAll(seq);
         return linked;
     }
 
@@ -140,7 +104,7 @@ var WPAutoCut = (function () {
         var original = app.project.activeSequence;
         if (!original) return C.fail("Nenhuma sequência ativa.");
 
-        var seq = cloneActive();
+        var seq = C.cloneActive(LABEL);
         if (!seq) return C.fail("Não consegui duplicar a sequência.");
         app.enableQE();
         var qeSeq = qe.project.getActiveSequence();
@@ -169,17 +133,7 @@ var WPAutoCut = (function () {
     }
 
     // Desfaz: apaga a cópia (AutoCut) ativa e volta para a original.
-    function undo() {
-        var seq = app.project.activeSequence;
-        if (!seq || !SUFFIX_RE.test(seq.name)) return C.fail("A sequência ativa não é uma cópia do AutoCut.");
-        var originalName = seq.name.replace(SUFFIX_RE, "");
-        app.project.deleteSequence(seq);
-        for (var i = 0; i < app.project.sequences.numSequences; i++) {
-            var s = app.project.sequences[i];
-            if (s.name === originalName) { app.project.openSequence(s.sequenceID); break; }
-        }
-        return C.out({ ok: true, sequence: originalName });
-    }
+    function undo() { return C.undoCopy(LABEL); }
 
     return { tracks: C.tracks, exportAudio: C.exportAudio, cut: C.wrap(cut), undo: C.wrap(undo) };
 })();
