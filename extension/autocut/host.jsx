@@ -8,7 +8,7 @@
 
 var WPAutoCut = (function () {
     var TICKS = 254016000000;
-    var SUFFIX = " (AutoCut)";
+    var SUFFIX_RE = / \(AutoCut( \d+)?\)$/;
     var EPS = 0.002;
 
     function quote(s) {
@@ -96,16 +96,26 @@ var WPAutoCut = (function () {
         return out({ ok: true, path: outPath, duration: secs(seq.end) });
     }
 
+    // "<nome> (AutoCut)", ou "(AutoCut 2)", "(AutoCut 3)"... se já existir
+    function copyName(base) {
+        var taken = {};
+        for (var i = 0; i < app.project.sequences.numSequences; i++) taken[app.project.sequences[i].name] = true;
+        var name = base + " (AutoCut)";
+        for (var n = 2; taken[name]; n++) name = base + " (AutoCut " + n + ")";
+        return name;
+    }
+
     // Duplica a sequência ativa e abre a cópia: os cortes nunca vão na sequência original.
     function cloneActive() {
         var seq = app.project.activeSequence;
         var before = {};
         for (var i = 0; i < app.project.sequences.numSequences; i++) before[app.project.sequences[i].sequenceID] = true;
+        var name = copyName(seq.name);
         seq.clone();
         for (var j = 0; j < app.project.sequences.numSequences; j++) {
             var s = app.project.sequences[j];
             if (!before[s.sequenceID]) {
-                s.name = seq.name + SUFFIX;
+                s.name = name;
                 app.project.openSequence(s.sequenceID);
                 return app.project.activeSequence;
             }
@@ -237,8 +247,8 @@ var WPAutoCut = (function () {
     // Desfaz: apaga a cópia (AutoCut) ativa e volta para a original.
     function undo() {
         var seq = app.project.activeSequence;
-        if (!seq || seq.name.indexOf(SUFFIX) < 0) return fail("A sequência ativa não é uma cópia do AutoCut.");
-        var originalName = seq.name.substr(0, seq.name.length - SUFFIX.length);
+        if (!seq || !SUFFIX_RE.test(seq.name)) return fail("A sequência ativa não é uma cópia do AutoCut.");
+        var originalName = seq.name.replace(SUFFIX_RE, "");
         app.project.deleteSequence(seq);
         for (var i = 0; i < app.project.sequences.numSequences; i++) {
             var s = app.project.sequences[i];

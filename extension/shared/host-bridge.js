@@ -3,6 +3,14 @@
 (function () {
   var cep = window.__adobe_cep__;
 
+  // Erro de JavaScript aparece na linha de status do painel, em vez de sumir em silêncio.
+  window.addEventListener("error", function (ev) {
+    var el = document.getElementById("status");
+    if (!el) return;
+    el.textContent = "Erro: " + ev.message + (ev.lineno ? " (linha " + ev.lineno + ")" : "");
+    el.className = "status error";
+  });
+
   function extensionRoot() {
     var p = decodeURI(cep.getSystemPath("extension"));
     p = p.replace(/^file:\/{2,3}/, "");
