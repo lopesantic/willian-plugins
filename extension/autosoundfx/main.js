@@ -22,7 +22,8 @@
   }
 
   function loadConfig() {
-    try { config = JSON.parse(fs.readFileSync(CONFIG, "utf8")); } catch (e) {}
+    // sem o BOM: editores do Windows gravam UTF-8 com ele e o JSON.parse recusa
+    try { config = JSON.parse(fs.readFileSync(CONFIG, "utf8").replace(/^﻿/, "")); } catch (e) {}
     config.rules = config.rules || {};
     config.library = config.library || [];
   }

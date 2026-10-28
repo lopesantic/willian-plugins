@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>LUT Library</title>
+  <link rel="stylesheet" href="../shared/panel.css">
+</head>
+<body>
+  <h1>LUT Library · prévia e aplicação</h1>
+
+  <div class="row">
+    <button id="folder">Escolher pasta de LUTs</button>
+    <button id="frame">Atualizar quadro</button>
+  </div>
+  <div class="crumbs" id="crumbs"></div>
+  <div class="subfolders" id="subfolders"></div>
+
+  <label class="check"><input type="checkbox" id="onlyFav"> Só favoritos</label>
+  <div class="lut-grid" id="grid"></div>
+
+  <label class="field">Intensidade <output id="intensityOut"></output>
+    <input type="range" id="intensity" min="0" max="100" step="5" value="100">
+  </label>
+  <button id="apply" class="primary">Aplicar nos clipes selecionados</button>
+
+  <div class="status" id="status">Escolha a pasta onde ficam seus .cube.</div>
+  <p class="note">O LUT entra num Lumetri novo em cada clipe selecionado (Creative › Look).</p>
+
+  <script src="../shared/host-bridge.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

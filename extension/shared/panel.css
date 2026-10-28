@@ -85,5 +85,17 @@ input[type="number"] {
   background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px; font: inherit;
 }
 
+.crumbs { margin-top: 10px; color: var(--muted); }
+.crumbs a { color: var(--accent); cursor: pointer; }
+.subfolders { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.chip { padding: 3px 8px; font-size: 11px; }
+.lut-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin-top: 8px; }
+.lut-card { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 4px; cursor: pointer; }
+.lut-card.active { border-color: var(--accent); }
+.lut-card canvas { display: block; width: 100%; height: auto; background: #111; border-radius: 2px; }
+.lut-name { display: flex; justify-content: space-between; gap: 4px; margin-top: 4px; font-size: 11px; overflow: hidden; white-space: nowrap; }
+.star { color: var(--border); cursor: pointer; }
+.star.on { color: #e5c07b; }
+
 .hidden { display: none !important; }
 .note { margin-top: 12px; color: var(--muted); font-size: 11px; }

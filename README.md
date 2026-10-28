@@ -18,7 +18,7 @@ O instalador copia os painéis para `%APPDATA%\Adobe\CEP\extensions\com.willian.
 | BeatMarker | detecta as batidas e cria marcadores de sequência (densidade, início, cor, ÷2/×2) | 0.1.0 |
 | AutoSoundFX | um som por cor de marcador (volume, âncora início/fim, ajuste, faixa, trecho), biblioteca de sons, desfazer | 0.1.0 |
 | AutoJCut | J-cuts entre takes colados (V1/A1) numa cópia "(J-Cut)", áudios alternando A1/A2 | 0.1.0 |
-| LUT Library | biblioteca e prévia de LUTs .cube | planejado |
+| LUT Library | pasta de .cube com prévia no quadro atual, favoritos, intensidade e aplicação no Lumetri dos clipes selecionados | 0.1.0 |
 
 ## Pelo Claude Bridge
 Cada painel tem um `host.jsx` com as funções num objeto global. Exemplo:
