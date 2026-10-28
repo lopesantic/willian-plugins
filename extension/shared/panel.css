@@ -186,6 +186,28 @@ canvas#ruler { height: 40px; margin-top: 10px; }
 .sfx-row .sound { flex: 1; text-align: right; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sfx-row[open] summary { margin-bottom: 10px; }
 
+/* ---------- Transcrever ---------- */
+.seg button { flex-direction: column; gap: 1px; padding: 8px 4px; border-radius: var(--radius-md); }
+.seg button small { color: var(--muted); font-size: 10px; font-weight: 400; }
+.seg button.active small { color: #fbcfe8; }
+select.mini { display: inline-block; width: auto; margin: 0 0 0 auto; padding: 4px 26px 4px 8px; font-size: 11px; }
+.progress { height: 6px; margin-top: 10px; border-radius: 6px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+.progress i { display: block; height: 100%; width: 0; background: var(--grad); box-shadow: 0 0 10px rgba(236, 72, 153, .6); transition: width .2s; }
+input[type="search"] {
+  flex: 3; padding: 8px 12px; background: var(--well); color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--radius-md); font: inherit;
+}
+.tag { color: #f9a8d4; letter-spacing: .06em; }
+.segments { margin-top: 10px; max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 2px; }
+.segrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.segrow .speaker {
+  flex-basis: 100%; margin-top: 6px; padding: 2px 0; background: transparent; border: 0;
+  color: #c4b5fd; font: 700 11px var(--ui); letter-spacing: .06em; text-transform: uppercase;
+}
+.segrow .time { padding: 2px 7px; border-radius: 20px; font-size: 10.5px; font-variant-numeric: tabular-nums; color: #f9a8d4; }
+.segrow .segtext { flex: 1; min-width: 60%; padding: 2px 4px; border-radius: 6px; outline: none; line-height: 1.5; }
+.segrow .segtext:focus { background: var(--well); box-shadow: 0 0 0 1px rgba(236, 72, 153, .5); }
+
 /* ---------- LUT Library ---------- */
 .crumbs { color: var(--muted); font-size: 11px; }
 .crumbs a { color: #f9a8d4; cursor: pointer; }

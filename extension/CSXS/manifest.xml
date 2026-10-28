@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Willian Plugins: um pacote, um painel por ferramenta. Sem login, sem servidor. -->
-<ExtensionManifest Version="7.0" ExtensionBundleId="com.willian.plugins" ExtensionBundleVersion="1.2.1" ExtensionBundleName="Willian Plugins" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ExtensionManifest Version="7.0" ExtensionBundleId="com.willian.plugins" ExtensionBundleVersion="1.3.0" ExtensionBundleName="Willian Plugins" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ExtensionList>
     <Extension Id="com.willian.plugins.margens" Version="0.1.0"/>
     <Extension Id="com.willian.plugins.autocut" Version="0.1.0"/>
@@ -8,6 +8,7 @@
     <Extension Id="com.willian.plugins.autosoundfx" Version="0.1.0"/>
     <Extension Id="com.willian.plugins.autojcut" Version="0.1.0"/>
     <Extension Id="com.willian.plugins.lutlibrary" Version="0.1.0"/>
+    <Extension Id="com.willian.plugins.transcrever" Version="0.1.0"/>
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList><Host Name="PPRO" Version="[25.0,99.9]"/></HostList>
@@ -96,6 +97,20 @@
           <Type>Panel</Type>
           <Menu>Willian - LUT Library</Menu>
           <Geometry><Size><Height>680</Height><Width>360</Width></Size></Geometry>
+        </UI>
+      </DispatchInfo>
+    </Extension>
+    <Extension Id="com.willian.plugins.transcrever">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./transcrever/index.html</MainPath>
+          <CEFCommandLine><Parameter>--enable-nodejs</Parameter><Parameter>--mixed-context</Parameter></CEFCommandLine>
+        </Resources>
+        <Lifecycle><AutoVisible>true</AutoVisible></Lifecycle>
+        <UI>
+          <Type>Panel</Type>
+          <Menu>Willian - Transcrever</Menu>
+          <Geometry><Size><Height>720</Height><Width>380</Width></Size></Geometry>
         </UI>
       </DispatchInfo>
     </Extension>

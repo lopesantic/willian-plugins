@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Transcrever</title>
+  <link rel="stylesheet" href="../shared/panel.css">
+</head>
+<body>
+  <header class="wp-header">
+    <div class="wp-mark">W</div>
+    <div><div class="wp-title">Transcrever</div><div class="wp-sub">Fala em texto e legendas, no seu PC</div></div>
+  </header>
+
+  <section class="card">
+    <label class="field">Faixa de áudio
+      <select id="track"><option value="all">Todas as faixas (mixagem)</option></select>
+    </label>
+    <label class="field">Idioma do áudio
+      <select id="lang"></select>
+    </label>
+    <div class="field">Modo de transcrição</div>
+    <div class="row seg" id="modes">
+      <button data-mode="chita" class="ghost">Chita<small>rápido</small></button>
+      <button data-mode="golfinho" class="ghost">Golfinho<small>equilibrado</small></button>
+      <button data-mode="baleia" class="ghost">Baleia<small>mais preciso</small></button>
+    </div>
+    <label class="check"><input type="checkbox" id="speakers"> Reconhecer locutores
+      <select id="speakerCount" class="mini">
+        <option value="0">automático</option><option value="2">2</option><option value="3">3</option>
+        <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+      </select>
+    </label>
+    <label class="check"><input type="checkbox" id="toEnglish"> Transcrever direto para inglês</label>
+    <label class="check"><input type="checkbox" id="restore"> Restaurar áudio (só para áudio ruim)</label>
+    <button id="run" class="primary">Transcrever</button>
+    <div class="progress hidden" id="progress"><i></i></div>
+  </section>
+
+  <div id="result" class="hidden">
+    <section class="card">
+      <h2>Transcrição <span id="viewTag" class="tag"></span></h2>
+      <div class="row">
+        <input type="search" id="search" placeholder="Buscar no texto…">
+        <button id="showTimes" class="ghost chip">Tempos</button>
+      </div>
+      <div class="segments" id="segments"></div>
+    </section>
+
+    <section class="card">
+      <h2>Legendas na timeline</h2>
+      <label class="field">Palavras por legenda <output id="wordsOut"></output>
+        <input type="range" id="words" min="1" max="12" step="1" value="4">
+      </label>
+      <button id="captions" class="primary">Gerar legendas na faixa de captions</button>
+      <button id="markers" class="ghost">Marcadores nas falas</button>
+    </section>
+
+    <section class="card">
+      <h2>Exportar</h2>
+      <div class="row">
+        <button class="ghost" data-export="srt">SRT</button>
+        <button class="ghost" data-export="txt">TXT</button>
+        <button class="ghost" data-export="vtt">VTT</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="ghost" data-export="docx">DOCX</button>
+        <button class="ghost" data-export="pdf">PDF</button>
+        <button class="ghost" data-export="csv">CSV</button>
+      </div>
+      <label class="check"><input type="checkbox" id="expTimes" checked> Incluir tempos no TXT, DOCX e PDF</label>
+    </section>
+
+    <section class="card">
+      <h2>Traduzir (online)</h2>
+      <div class="row">
+        <select id="toLang"></select>
+        <button id="translate" class="ghost">Traduzir</button>
+      </div>
+      <button id="toggleView" class="ghost hidden">Ver o original</button>
+    </section>
+  </div>
+
+  <div class="status" id="status">Escolha a faixa de áudio e clique em Transcrever.</div>
+  <p class="note">Tudo roda no seu PC (whisper.cpp). Na primeira vez, o motor e o modelo do modo escolhido são baixados. Só a tradução usa a internet.</p>
+
+  <script src="../shared/host-bridge.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
