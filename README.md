@@ -14,7 +14,7 @@ O instalador copia os painéis para `%APPDATA%\Adobe\CEP\extensions\com.willian.
 | Painel | Faz | Estado |
 |---|---|---|
 | Margens | guia de área segura (Reels, TikTok, Shorts) numa faixa no topo da sequência 9:16 | 0.1.0 |
-| AutoCut | corta silêncios | planejado |
+| AutoCut | corta os silêncios numa cópia da sequência "(AutoCut)": lift, ripple ou só razor | 0.1.0 |
 | BeatMarker | marcadores nas batidas da música | planejado |
 | AutoSoundFX | SFX por cor de marcador | planejado |
 | AutoJCut | J-cuts entre takes | planejado |
@@ -26,6 +26,9 @@ Cada painel tem um `host.jsx` com as funções num objeto global. Exemplo:
 $.evalFile("<extensão>/margens/host.jsx");
 WPMargens.apply("reels", "<extensão>/assets/guides");
 ```
+AutoCut fora do painel: `WPAutoCut.exportAudio("all", "<wav>")`, depois
+`node tools/autocut-detect.js <wav> [--threshold dB] [--min ms] [--pad ms]` e
+`WPAutoCut.cut('<regions do JSON>', "ripple")`.
 
 ## Desenvolvimento
 - `extension/` é o pacote CEP (um `manifest.xml`, uma pasta por painel, `shared/` comum).

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>AutoCut</title>
+  <link rel="stylesheet" href="../shared/panel.css">
+</head>
+<body>
+  <h1>AutoCut · corte de silêncio</h1>
+
+  <label class="field">Áudio de referência
+    <select id="track"><option value="all">Todas as faixas (mixagem)</option></select>
+  </label>
+  <button id="analyze" class="primary">Analisar áudio</button>
+
+  <div id="results" class="hidden">
+    <canvas id="wave" height="90"></canvas>
+    <div class="summary" id="summary"></div>
+
+    <div class="row presets">
+      <button data-preset="natural">Natural</button>
+      <button data-preset="ritmado">Ritmado</button>
+      <button data-preset="rapido">Rápido</button>
+    </div>
+
+    <label class="field">Limiar <output id="thresholdOut"></output>
+      <input type="range" id="threshold" min="-60" max="-10" step="1">
+    </label>
+    <label class="field">Silêncio mínimo <output id="minOut"></output>
+      <input type="range" id="min" min="100" max="3000" step="10">
+    </label>
+    <label class="field">Folga nas bordas <output id="padOut"></output>
+      <input type="range" id="pad" min="0" max="500" step="10">
+    </label>
+
+    <label class="field">Modo
+      <select id="mode">
+        <option value="ripple">Fechar os buracos (ripple)</option>
+        <option value="lift">Deixar os buracos</option>
+        <option value="razor">Só cortar, sem remover</option>
+      </select>
+    </label>
+
+    <button id="cut" class="primary">Cortar silêncios numa cópia</button>
+    <button id="undo">Desfazer (apaga a cópia)</button>
+  </div>
+
+  <div class="status" id="status">Abra a sequência e clique em Analisar.</div>
+  <p class="note">Os cortes vão numa cópia da sequência, "(AutoCut)". A original não é alterada.</p>
+
+  <script src="../shared/host-bridge.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

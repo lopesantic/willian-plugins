@@ -44,5 +44,27 @@ button:disabled { opacity: .45; cursor: default; }
 .status.error { color: var(--error); }
 .status.ok { color: var(--ok); }
 
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; text-align: center; }
+button.primary:hover { filter: brightness(1.1); }
+body > button, #results > button { display: block; width: 100%; margin-top: 8px; }
+
+.field { display: block; margin-top: 10px; color: var(--muted); }
+.field output { float: right; color: var(--text); }
+select, input[type="range"] { display: block; width: 100%; margin-top: 4px; }
+select {
+  padding: 6px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: inherit;
+}
+input[type="range"] { accent-color: var(--accent); }
+
+canvas { display: block; width: 100%; height: 90px; margin-top: 10px; background: #1a1a1a; border-radius: 4px; }
+.summary { margin-top: 6px; color: var(--text); }
+.presets { margin-top: 10px; }
+.presets button { text-align: center; }
+
 .hidden { display: none !important; }
 .note { margin-top: 12px; color: var(--muted); font-size: 11px; }
