@@ -11,8 +11,10 @@
 
   var BASE = path.join(process.env.APPDATA, "Willian Plugins", "Transcrever");
   var RELEASE = "https://github.com/ggml-org/whisper.cpp/releases/download/b5454/";
+  // O pacote CUDA 11.8 não traz o cuBLAS (cublas64_11.dll, que a ggml-cuda.dll exige): sem ele o whisper.cpp
+  // cai na CPU sem avisar ("no GPU found", MEDIDO 29/10/2026). O 12.4 traz cublas64_12 e cublasLt64_12.
   var ENGINES = {
-    cuda: { zip: "whisper-bin-win-cuda-11.8.0-x64.zip", mb: 271 },
+    cuda12: { zip: "whisper-bin-win-cuda-12.4.0-x64.zip", mb: 653 },
     cpu: { zip: "whisper-bin-x64.zip", mb: 8 }
   };
   var MODEL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/";
@@ -74,14 +76,17 @@
     Object.keys(MODES).forEach(function (m) { models[m] = fs.existsSync(path.join(BASE, "models", MODES[m].file)); });
     var kind = "";
     try { kind = fs.readFileSync(path.join(dir, "kind.txt"), "utf8").trim(); } catch (e) {}
-    return { installed: !!cli, cli: cli, kind: kind, models: models, base: BASE };
+    // "cuda" = pacote 11.8 sem cuBLAS (rodava na CPU): conta como não instalado para trocar pelo 12.4
+    return { installed: !!cli && !!ENGINES[kind], cli: cli, kind: kind, models: models, base: BASE };
   }
 
   // Baixa e extrai o whisper.cpp (uma vez). onProgress(fração, texto).
   function ensureEngine(onProgress) {
     var st = engineStatus();
     if (st.installed) return Promise.resolve(st.cli);
-    var kind = hasNvidia() ? "cuda" : "cpu", info = ENGINES[kind];
+    // instalação antiga (só arquivos baixados pelo próprio plugin): sai antes de extrair a nova
+    if (fs.existsSync(engineDir())) fs.rmSync(engineDir(), { recursive: true, force: true });
+    var kind = hasNvidia() ? "cuda12" : "cpu", info = ENGINES[kind];
     var dir = mkdirp(engineDir()), zip = path.join(BASE, info.zip);
     var say = function (f) { if (onProgress) onProgress(f, "Baixando o motor (" + info.mb + " MB)…"); };
     return download(RELEASE + info.zip, zip, say).then(function () {
@@ -272,16 +277,20 @@
         onP(0, "Preparando o áudio…");
         to16k(src, wav16);
         try { fs.unlinkSync(outBase + ".json"); } catch (e) {}
+        // busca gulosa (-bs 1 -bo 1) em vez de 5 feixes: mesmo texto e ~40% menos tempo no large-v3-turbo
+        // (MEDIDO 29/10/2026, 63 s de fala numa RTX 2050: 13,1 -> 7,6 s; small 7,9 -> 7,7 s; base 6,9 -> 4,3 s)
         var args = ["-m", model, "-f", wav16, "-l", opts.language || "auto", "-ojf", "-of", outBase,
-                    "-t", String(Math.max(2, Math.min(8, os.cpus().length - 1))), "-pp", "-np",
+                    "-t", String(Math.max(2, Math.min(8, os.cpus().length - 1))), "-pp",
+                    "-bs", "1", "-bo", "1",
                     "-dtw", MODES[opts.mode || "golfinho"].dtw, "-nfa"];
         if (opts.translate) args.push("-tr");
         return new Promise(function (resolve, reject) {
           var p = cp.spawn(cli, args, { cwd: path.dirname(cli), windowsHide: true });
-          var errTail = "";
+          var errTail = "", head = "";
           var onData = function (d) {
             var s = d.toString();
             errTail = (errTail + s).slice(-2000);
+            if (head.length < 20000) head += s;   // início do log: diz se a placa de vídeo entrou
             var m2 = s.match(/progress =\s*(\d+)%/g);
             if (m2) onP(+m2[m2.length - 1].replace(/\D/g, "") / 100, "Transcrevendo…");
           };
@@ -292,6 +301,7 @@
             if (code !== 0 || !fs.existsSync(outBase + ".json")) return reject(new Error("O whisper.cpp falhou (" + code + "): " + errTail.slice(-400)));
             var json = JSON.parse(fs.readFileSync(outBase + ".json", "utf8"));
             var result = parseFull(json);
+            result.device = /using CUDA\d+ backend/.test(head) ? "gpu" : "cpu";
             result.timing = refineTimings(wav16, result.segments);
             resolve(result);
           });

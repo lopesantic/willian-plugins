@@ -1,16 +1,20 @@
-# Willian Plugins
+# Sharp Frame
+
+(Antes "Willian Plugins". O ID interno do pacote e a pasta de dados em `%APPDATA%\Willian Plugins` continuam os mesmos, para atualizar por cima sem perder modelos, templates e ajustes.)
 
 Painéis próprios para o Adobe Premiere Pro (CEP). Sem login, sem servidor: tudo roda no computador.
 
 ## Instalar (inclusive depois de formatar)
-1. Baixe o `WillianPlugins-Setup-<versão>.exe` mais recente em **Releases** deste repositório.
+1. Baixe o `SharpFrame-Setup-<versão>.exe` mais recente em **Releases** deste repositório.
 2. Rode o instalador (não pede administrador).
-3. Reinicie o Premiere e abra os painéis em **Janela > Extensões**.
+3. Reinicie o Premiere e abra **Janela > Extensões > Sharp Frame**. É um painel só: as ferramentas ficam na barra lateral, por categoria (Corte e montagem, Texto e legendas, Áudio, Cor e movimento, Formato).
 
 O instalador copia os painéis para `%APPDATA%\Adobe\CEP\extensions\com.willian.plugins` e liga o
 `PlayerDebugMode` do CEP (necessário para painéis não assinados). Desinstala pelo Painel de Controle.
 
-## Painéis
+## Ferramentas (abas do painel Sharp Frame)
+Desde a 1.8.0 os painéis separados ("Willian - Margens", "Willian - AutoCut"...) não existem mais: tudo abre dentro do Sharp Frame.
+
 | Painel | Faz | Estado |
 |---|---|---|
 | Margens | guia de área segura (Reels, TikTok, Shorts) numa faixa no topo da sequência 9:16 | 0.1.0 |

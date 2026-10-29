@@ -78,11 +78,7 @@
 
     document.querySelectorAll(".mt-font").forEach(function (box) {
         var lv = +box.dataset.lv, pick = box.querySelector(".fontpick");
-        pick.addEventListener("change", function () {
-            var f = byLabel[pick.value] || byPs[pick.value];
-            if (!f) { say("Fonte não encontrada: " + pick.value, "error"); renderFonts(); return; }
-            S.fonts[lv].ps = f.postscript; changed(true);
-        });
+        wirePicker(pick, lv);
         box.querySelectorAll("input[type=range]").forEach(function (r) {
             r.addEventListener("input", function () { S.fonts[lv][r.dataset.k] = +r.value; changed(true); });
         });
@@ -99,6 +95,101 @@
     });
     $("applyExisting").checked = S.applyExisting;
     $("applyExisting").addEventListener("change", function () { S.applyExisting = this.checked; save(); });
+
+    // ---------- seletor de fontes ----------
+    // Lista própria: o datalist do CEP quase não abre e só aceitava o nome exato (digitar "Anton" não fazia nada).
+    // Clique abre; digitar filtra por qualquer parte do nome; Enter escolhe a primeira. No topo, as fontes usadas no
+    // projeto do cliente (engine.projectFonts); cada nome aparece desenhado na própria fonte.
+    var PROJ = { used: [], missing: [], key: "" }, pop = $("fontPop"), popFor = null, popFirst = null;
+    function fontHit(f, ql) { return !ql || label(f).toLowerCase().indexOf(ql) >= 0 || f.postscript.toLowerCase().indexOf(ql) >= 0; }
+    function popItem(list, f, tag) {
+        var d = document.createElement("div"); d.className = "mt-fp-item" + (popFor && S.fonts[popFor.lv].ps === f.postscript ? " on" : "");
+        d.style.fontFamily = "'" + cssFamily(f.postscript) + "'"; d.style.fontWeight = cssWeight(f.postscript); d.style.fontStyle = cssStyle(f.postscript);
+        d.textContent = label(f);
+        if (tag) { var s = document.createElement("small"); s.textContent = tag; d.appendChild(s); }
+        d.addEventListener("mousedown", function (ev) { ev.preventDefault(); choose(f); });
+        list.appendChild(d);
+        if (!popFirst) popFirst = f;
+    }
+    function popHead(list, text) { var h = document.createElement("div"); h.className = "mt-fp-head"; h.textContent = text; list.appendChild(h); }
+    function popNote(list, text) { var n = document.createElement("div"); n.className = "mt-fp-note"; n.textContent = text; list.appendChild(n); }
+    function renderPop(q) {
+        var list = $("fontPopList"), ql = String(q || "").trim().toLowerCase();
+        list.innerHTML = ""; popFirst = null;
+        var proj = PROJ.used.map(function (p) { return byPs[p]; }).filter(function (f) { return f && fontHit(f, ql); });
+        if (proj.length) { popHead(list, "No projeto do cliente"); proj.forEach(function (f) { popItem(list, f, "no projeto"); }); }
+        var all = fonts.filter(function (f) { return fontHit(f, ql); }), shown = all.slice(0, 160);
+        popHead(list, ql ? "Instaladas · " + all.length + " encontrada(s)" : "Todas as instaladas · " + fonts.length);
+        shown.forEach(function (f) { popItem(list, f); });
+        if (all.length > shown.length) popNote(list, "Mostrando " + shown.length + " de " + all.length + ". Digite parte do nome para achar outras.");
+        else if (!all.length) popNote(list, "Nenhuma fonte instalada com “" + q + "”.");
+        if (PROJ.missing.length && !ql) popNote(list, "Usadas no projeto mas não instaladas aqui: " + PROJ.missing.join(", ") + ".");
+    }
+    function placePop(pick) {
+        var r = pick.getBoundingClientRect(), below = window.innerHeight - r.bottom;
+        pop.style.left = r.left + "px"; pop.style.width = Math.max(r.width, 220) + "px";
+        if (below < 200 && r.top > below) { pop.style.top = "auto"; pop.style.bottom = (window.innerHeight - r.top + 2) + "px"; pop.style.maxHeight = Math.min(320, r.top - 8) + "px"; }
+        else { pop.style.bottom = "auto"; pop.style.top = (r.bottom + 2) + "px"; pop.style.maxHeight = Math.min(320, below - 8) + "px"; }
+    }
+    function openPop(pick, lv) {
+        popFor = { pick: pick, lv: lv };
+        pick.select();
+        renderPop(""); placePop(pick); pop.classList.remove("hidden"); pop.scrollTop = 0;
+        loadProjectFonts();
+    }
+    function closePop() { pop.classList.add("hidden"); popFor = null; renderFonts(); }
+    function choose(f) {
+        if (!popFor) return;
+        var lv = popFor.lv, pick = popFor.pick;
+        S.fonts[lv].ps = f.postscript;
+        pop.classList.add("hidden"); popFor = null; pick.blur();
+        changed(true);
+        say("Fonte " + (lv ? "de destaque" : "padrão") + ": " + label(f) + ".", "ok");
+    }
+    function wirePicker(pick, lv) {
+        pick.addEventListener("focus", function () { openPop(pick, lv); });
+        pick.addEventListener("click", function () { if (!popFor) openPop(pick, lv); });
+        pick.addEventListener("input", function () { if (!popFor) openPop(pick, lv); renderPop(pick.value); });
+        pick.addEventListener("keydown", function (ev) {
+            if (ev.key === "Enter") { ev.preventDefault(); if (popFirst) choose(popFirst); }
+            else if (ev.key === "Escape") pick.blur();
+        });
+        pick.addEventListener("blur", function () { setTimeout(function () { if (popFor && popFor.pick === pick) closePop(); }, 120); });
+    }
+    window.addEventListener("resize", function () { if (popFor) placePop(popFor.pick); });
+
+    // fontes do projeto do cliente: projeto salvo + sequência aberta (pega o que ainda não foi salvo); refaz se mudar
+    var projBusy = null;
+    function loadProjectFonts(force) {
+        if (projBusy) return projBusy;
+        projBusy = WP.call("WPMotion.info").then(function (d) {
+            var key = d.path + "|" + d.seq;
+            if (!force && key === PROJ.key) return;
+            var seqFile = pathMod.join(require("os").tmpdir(), "willian-mt-fontes.prproj").replace(/\\/g, "/");
+            return WP.call("WPMotion.exportSeq", [seqFile]).catch(function () {}).then(function () {
+                var known = {}; fonts.forEach(function (f) { known[f.postscript] = true; });
+                var r = E.projectFonts([d.path, seqFile], known);
+                PROJ.used = r.used; PROJ.missing = r.missing; PROJ.key = key;
+                renderProjFonts();
+                if (popFor) renderPop(popFor.pick.value === label(byPs[S.fonts[popFor.lv].ps] || { family: "", style: "" }) ? "" : popFor.pick.value);
+            });
+        }).catch(function () {}).then(function () { projBusy = null; });
+        return projBusy;
+    }
+    function renderProjFonts() {
+        var el = $("projFonts"); if (!el) return;
+        if (!PROJ.used.length && !PROJ.missing.length) { el.textContent = "Nenhuma fonte de texto encontrada neste projeto."; return; }
+        el.innerHTML = "";
+        el.appendChild(document.createTextNode("Fontes do projeto: "));
+        var top = PROJ.used.slice(0, 8);
+        top.forEach(function (p, i) {
+            var b = document.createElement("b"); b.textContent = label(byPs[p]); b.style.fontFamily = "'" + cssFamily(p) + "'";
+            el.appendChild(b); if (i < top.length - 1) el.appendChild(document.createTextNode(", "));
+        });
+        if (PROJ.used.length > 8) el.appendChild(document.createTextNode(" e mais " + (PROJ.used.length - 8)));
+        if (PROJ.missing.length) el.appendChild(document.createTextNode(" · não instaladas: " + PROJ.missing.join(", ")));
+        el.appendChild(document.createTextNode(". Elas aparecem primeiro ao clicar no nome da fonte."));
+    }
 
     // ---------- medida / margens ----------
     function guide() {
@@ -204,18 +295,30 @@
         else tag.textContent = S.autoFit ? "reduz para " + Math.round(sc * 100) + "%" : "passa da margem";
         tag.className = "tag" + (sc < 0.999 && !S.autoFit ? " warn" : "");
     }
+    function describe(ws) {
+        var hi = ws.filter(function (o) { return o.lv === 1; }).map(function (o) { return o.w; }), lk = ws.filter(function (o) { return o.lv === 2; }).map(function (o) { return o.w; });
+        return "destaque: " + (hi.join(", ") || "nenhuma") + " · ligação: " + (lk.join(", ") || "nenhuma") + " · " + (ws.filter(function (o) { return o.br; }).length + 1) + " linha(s)";
+    }
     $("autoHier").addEventListener("click", function () {
+        var before = E.toMarkup(words);
         words = E.layout(E.autoHierarchy(textEl.value), styles(), false).words;
         textEl.value = plainWithBreaks(); changed();
+        say((E.toMarkup(words) === before ? "A hierarquia automática já era esta. " : "Hierarquia aplicada. ") + describe(words) + ". Clique numa palavra para trocar.", "ok");
     });
     $("autoBreak").addEventListener("click", function () {
-        words = E.layout(words, styles(), false).words;
+        var before = E.toMarkup(words);
+        words = E.layout(words.map(function (o) { return { w: o.w, lv: o.lv }; }), styles(), false).words;
         textEl.value = plainWithBreaks(); changed();
+        var n = words.filter(function (o) { return o.br; }).length + 1;
+        say(E.toMarkup(words) === before ? "As linhas já estavam assim (" + n + " linha(s) dentro da margem)." : "Quebrado em " + n + " linha(s) para caber na margem.", "ok");
     });
+    // qualquer graphic selecionado (MotionText, template de terceiro ou texto do Premiere): o 1º texto vai para o editor
     $("readSel").addEventListener("click", function () {
-        WP.call("WPMotion.readSelected").then(function (d) {
-            words = E.parseMarkup(d.text); textEl.value = plainWithBreaks(); changed();
-            say("Texto lido da legenda selecionada.", "ok");
+        say("Lendo o texto da timeline…");
+        readGraphicsFull().then(function (d) {
+            var it = d.items[0];
+            words = E.parseMarkup(it.mt ? it.text : E.plain(it.text)); textEl.value = plainWithBreaks(); changed();
+            say("Texto lido: “" + E.plain(it.text).replace(/\n/g, " ").slice(0, 60) + "”" + (d.items.length > 1 ? " (1º de " + d.items.length + " selecionados)" : "") + ".", "ok");
         }).catch(function (e) { say(e.message, "error"); });
     });
 
@@ -223,7 +326,8 @@
     // monta linhas > palavras > letras; devolve as unidades por "basedOn" (1 letra, 3 palavra, 4 linha)
     function buildText(container, ws, k, scale) {
         container.innerHTML = "";
-        var lines = [[]], sc = scale || 1;
+        // plain: miniaturas da biblioteca só com as cores sólidas (com degradê/contorno do estilo atual o texto sumia)
+        var lines = [[]], sc = scale || 1, plain = arguments[4] === true;
         ws.forEach(function (o, i) { lines[lines.length - 1].push(o); if (o.br && i < ws.length - 1) lines.push([]); });
         var units = { 1: [], 3: [], 4: [] };
         lines.forEach(function (ln) {
@@ -238,18 +342,21 @@
                 wd.style.letterSpacing = (fo.tracking / 1000) + "em";
                 wd.dataset.color = [S.colors.pad, S.colors.hi, S.colors.link][o.lv];
                 wd.style.color = wd.dataset.color;
-                if (S.stroke > 0) wd.style.webkitTextStroke = Math.max(0.5, S.stroke * k) + "px " + S.colors.stroke;
                 var shadows = [];
-                if (S.shadow > 0) shadows.push((6 * k) + "px " + (6 * k) + "px " + (14 * k) + "px rgba(0,0,0," + (S.shadow / 100) + ")");
-                if (S.glow > 0) shadows.push("0 0 " + Math.max(2, S.glowR * k * 1.5) + "px " + wd.dataset.color, "0 0 " + Math.max(1, S.glowR * k * 0.6) + "px " + wd.dataset.color);
+                if (!plain) {
+                    // contorno por trás da letra, como no template (paint-order)
+                    if (S.stroke > 0) { wd.style.webkitTextStroke = Math.max(0.5, S.stroke * k * 2) + "px " + S.colors.stroke; wd.style.paintOrder = "stroke fill"; }
+                    if (S.shadow > 0) shadows.push(((4 + S.shadow * 0.14) * k) + "px " + ((4 + S.shadow * 0.14) * k) + "px " + ((8 + S.shadow * 0.3) * k) + "px rgba(0,0,0," + (S.shadow / 100) + ")");
+                    if (S.glow > 0) shadows.push("0 0 " + Math.max(2, S.glowR * k * 1.5) + "px " + wd.dataset.color, "0 0 " + Math.max(1, S.glowR * k * 0.6) + "px " + wd.dataset.color);
+                } else shadows.push("0 1px 2px rgba(0,0,0,.6)");
                 if (shadows.length) wd.style.textShadow = shadows.join(",");
-                // degradê aproximado: o navegador pinta o texto com o gradiente (no template ele é recortado pelo texto)
-                if (S.grad >= 50) {
-                    wd.style.backgroundImage = "linear-gradient(" + S.gradA + "," + S.gradB + ")";
-                    wd.style.webkitBackgroundClip = "text"; wd.style.color = "transparent"; wd.dataset.color = "transparent";
-                }
+                // degradê aproximado em cada letra (na palavra inteira ele some quando as letras animam por dentro)
+                var gradCss = !plain && S.grad >= 50 ? "linear-gradient(" + S.gradA + "," + S.gradB + ")" : "";
+                if (gradCss) { wd.style.color = "transparent"; wd.dataset.color = "transparent"; wd.style.textShadow = ""; }
                 o.w.split("").forEach(function (ch) {
-                    var c = document.createElement("span"); c.className = "mt-u"; c.textContent = ch; c.dataset.ch = ch; wd.appendChild(c); units[1].push(c);
+                    var c = document.createElement("span"); c.className = "mt-u"; c.textContent = ch; c.dataset.ch = ch;
+                    if (gradCss) { c.style.backgroundImage = gradCss; c.style.webkitBackgroundClip = "text"; c.style.color = "transparent"; }
+                    wd.appendChild(c); units[1].push(c);
                 });
                 units[3].push(wd);
                 ld.appendChild(wd);
@@ -332,7 +439,7 @@
             card.appendChild(view); card.appendChild(name); card.appendChild(star);
             card.addEventListener("click", function () { S.anim = a.id; renderAnimGrid(); changed(true); });
             grid.appendChild(card);
-            var units = buildText(view, [{ w: "SEU", lv: 0 }, { w: "TEXTO", lv: 1 }], 0.16);
+            var units = buildText(view, [{ w: "SEU", lv: 0 }, { w: "TEXTO", lv: 1 }], 0.16, 1, true);
             previews.push({ kind: "card", anim: a, units: units, k: 0.16, el: view });
         });
     }
@@ -403,7 +510,7 @@
             var name = document.createElement("div"); name.className = "mt-name"; name.textContent = L[0];
             card.appendChild(view); card.appendChild(name);
             var sample = ws.map(function (w, i) { return { w: w, lv: L[1][i], br: !!L[2][i] }; });
-            buildText(view, sample, 0.14);
+            buildText(view, sample, 0.14, 1, true);
             card.addEventListener("click", function () {
                 words = sample.map(function (o) { return { w: o.w, lv: o.lv, br: o.br }; });
                 textEl.value = plainWithBreaks(); changed();
@@ -439,7 +546,7 @@
                 vid.src = "previews/" + cb.id + ".mp4"; view.appendChild(vid);
             } else {
                 var k = 150 / 1080, H = 104;
-                cb.layers.forEach(function (l) {
+                layoutCombo(cb.layers, 50).forEach(function (l) {
                     var d = document.createElement("div"); d.className = "mt-natlayer";
                     // palavras > letras, para a prévia animar a camada com a animação recriada e o atraso dela
                     var units = { 1: [], 3: [], 4: [d] };
@@ -487,6 +594,35 @@
             inp.value = mine.slice(pos, pos + n).join(" "); pos += n;
         });
     });
+    // Hierarquia e alinhamento das combinações (os dados recriados tinham camadas juntas no mesmo ponto e tamanhos
+    // parecidos). Camadas na tela ao mesmo tempo viram linhas empilhadas e centralizadas; as que entram em sequência
+    // dividem a mesma linha. A linha com a maior fonte é a principal; as outras ficam a ~58% dela e as de ligação
+    // a ~42% (INFERIDO, padrão de lettering: uma palavra forte, apoio menor). cy: centro do bloco em % da altura.
+    function layoutCombo(layers, cy) {
+        var L = layers.map(function (l, i) { var c = JSON.parse(JSON.stringify(l)); c.i = i; return c; });
+        var order = L.slice().sort(function (a, b) { return a.delay - b.delay || a.i - b.i; });
+        order.forEach(function (l) {
+            var used = order.filter(function (o) { return o !== l && o.row !== undefined && o.delay < l.delay + l.dur - 0.02 && o.delay + o.dur > l.delay + 0.02; })
+                .map(function (o) { return o.row; });
+            var r = 0; while (used.indexOf(r) >= 0) r++; l.row = r;
+        });
+        var rows = Math.max.apply(null, L.map(function (l) { return l.row; })) + 1, rowMax = [];
+        L.forEach(function (l) { rowMax[l.row] = Math.max(rowMax[l.row] || 0, l.size); });
+        var S0 = Math.max.apply(null, rowMax), main = rowMax.indexOf(S0);
+        L.forEach(function (l) {
+            if (rows > 1 && l.row !== main) l.size = Math.round(Math.min(l.size, S0 * 0.58));
+            if (rows > 1 && isLink(l.text)) l.size = Math.round(Math.min(l.size, S0 * 0.42));
+            l.main = l.row === main;
+        });
+        var rowH = [], H = seq.h || 1920;
+        L.forEach(function (l) { rowH[l.row] = Math.max(rowH[l.row] || 0, l.size * 0.95 * Math.max(1, l.text.split(/\r|\n/).length)); });
+        var gap = S0 * 0.12, total = rowH.reduce(function (s, h) { return s + h; }, 0) + gap * (rows - 1);
+        var y = (cy === undefined ? 50 : cy) / 100 * H - total / 2, center = [];
+        for (var r = 0; r < rows; r++) { center[r] = y + rowH[r] / 2; y += rowH[r] + gap; }
+        L.forEach(function (l) { l.pos = [50, Math.round(center[l.row] / H * 1000) / 10]; });
+        return L;
+    }
+
     // camada recriada -> parâmetros do nosso template
     function comboLayer(l, text) {
         var g = guide(), maxW = seq.w - g.left - g.right, font = fontOk(l.font);
@@ -503,20 +639,13 @@
         if (l.grad) { mt["Degradê (%)"] = 100; mt["Degradê cor 1"] = rgb(l.grad[0]); mt["Degradê cor 2"] = rgb(l.grad[1]); }
         if (l.glow) { mt["Brilho"] = 55; mt["Raio do brilho"] = Math.min(100, l.glow); }
         return { font: font, mogrt: E.templatePath(E.templateName(font, font, seq.w, seq.h)).replace(/\\/g, "/"),
-            delay: l.delay, dur: l.dur, layer: l.layer, text: text, mt: onlyChanged(mt), scale: size > 200 ? size / 2 : 100 };
+            delay: l.delay, dur: l.dur, layer: l.layer, text: E.fontTag(text, font, font), mt: onlyChanged(mt), scale: size > 200 ? size / 2 : 100 };
     }
-    // gera de uma vez os templates que faltam (uma abertura do After Effects para todas as fontes)
-    function ensureFonts(fontsList) {
-        var need = fontsList.filter(function (f, i) { return fontsList.indexOf(f) === i && !E.exists(E.templatePath(E.templateName(f, f, seq.w, seq.h))); });
-        if (!need.length) return Promise.resolve();
-        say("Gerando " + need.length + " template(s) no After Effects (1ª vez com estas fontes)…");
-        return E.buildTemplates(need.map(function (f) { return { fontA: f, fontB: f }; }), seq.w, seq.h, WP.extensionRoot(), function (sec, last) {
-            say("Gerando " + need.length + " template(s) no After Effects… " + Math.round(sec) + " s" + (last ? " · " + last : ""));
-        });
-    }
+    // o template é um só por tamanho de quadro (as fontes vão no texto): basta garantir que ele existe
+    function ensureFonts() { return ensureTemplate(); }
     function placeNat(layers) {
         return refreshSeq().then(function () {
-            var built = layers.map(function (l) { return comboLayer(l, l.text); });
+            var built = layoutCombo(layers, S.posY).map(function (l) { return comboLayer(l, l.text); });
             return ensureFonts(built.map(function (b) { return b.font; })).then(function () {
                 return WP.call("WPMotion.placeCombo", [JSON.stringify({ start: E.snap(seq.playhead, seq.fps), layers: built })]);
             });
@@ -587,6 +716,7 @@
             document.querySelectorAll(".mt-tabs button").forEach(function (x) { x.classList.toggle("active", x === b); });
             document.querySelectorAll(".tab").forEach(function (t) { t.classList.toggle("hidden", t.id !== "tab-" + b.dataset.tab); });
             if (b.dataset.tab === "combo") { if ($("natBox").classList.contains("hidden")) renderCombos(); else renderNat(); }
+            if (b.dataset.tab === "sel") { renderComboSelect(); if (SEL.items.length) renderSel(); else readSel(); }
         });
     });
 
@@ -598,8 +728,8 @@
             clearTimeout(pushTimer);
             pushTimer = setTimeout(function () {
                 var p = params(1); delete p["Posição vertical (%)"];
-                WP.call("WPMotion.update", [JSON.stringify({ params: p, scope: "all" })])
-                    .then(function (d) { say(d.updated + " legendas atualizadas na timeline (fonte nova só vale para as próximas).", "ok"); })
+                WP.call("WPMotion.update", [JSON.stringify({ params: p, scope: "all", fonts: [S.fonts[0].ps, S.fonts[1].ps] })])
+                    .then(function (d) { say(d.updated + " legendas atualizadas na timeline.", "ok"); })
                     .catch(function () {});
             }, 700);
         }
@@ -613,7 +743,7 @@
         var file = E.templatePath(E.templateName(a, b, seq.w, seq.h));
         if (E.exists(file)) return Promise.resolve(file);
         if (building) return building;
-        say("Gerando o template no After Effects (1ª vez com estas fontes, cerca de 1 min)…");
+        say("Gerando o template no After Effects (só na 1ª vez neste tamanho de quadro, cerca de 1,5 min)…");
         building = E.buildTemplate({ fontA: a, fontB: b, width: seq.w, height: seq.h }, WP.extensionRoot(), function (sec, last) {
             say("Gerando o template no After Effects… " + Math.round(sec) + " s" + (last ? " · " + last : ""));
         }).then(function (f) { building = null; return f; }, function (e) { building = null; throw e; });
@@ -631,13 +761,16 @@
     // ---------- aplicar ----------
     function itemFor(ws, start, end) {
         ws = finalWords(ws);
-        var sc = S.autoFit ? fit(ws) : 1, it = { start: start, end: end, text: E.toMarkup(ws) };
+        var sc = S.autoFit ? fit(ws) : 1, it = { start: start, end: end, text: tagged(E.toMarkup(ws)) };
         if (sc < 0.999) {
             var p = params(sc);
             it.params = { "Tamanho padrão": p["Tamanho padrão"], "Tamanho destaque": p["Tamanho destaque"], "Tamanho ligação": p["Tamanho ligação"] };
         }
         return it;
     }
+
+    // fontes do painel no fim do texto: o template é um só e lê as fontes dali (ver engine.fontTag)
+    function tagged(text) { return E.fontTag(text, S.fonts[0].ps, S.fonts[1].ps); }
 
     $("apply").addEventListener("click", function () {
         if (!words.length) { say("Escreva o texto primeiro.", "error"); return; }
@@ -652,10 +785,18 @@
         }).catch(function (e) { say(e.message, "error"); }).then(function () { btn.disabled = false; });
     });
 
+    // uma legenda MotionText: recebe o texto e o estilo do painel. Várias, ou graphics de outro tipo: cada uma mantém o
+    // próprio texto e tempo e recebe o estilo e a animação do painel (as que não são MotionText viram MotionText)
     $("update").addEventListener("click", function () {
-        WP.call("WPMotion.update", [JSON.stringify({ params: params(1), scope: "selected", text: E.toMarkup(words) })])
-            .then(function (d) { say(d.updated + " legenda(s) atualizada(s) com o texto e o estilo do painel.", "ok"); })
-            .catch(function (e) { say(e.message, "error"); });
+        var btn = this; btn.disabled = true; say("Lendo as legendas selecionadas…");
+        readGraphicsFull().then(function (d) {
+            if (d.items.length === 1 && d.items[0].mt) {
+                return WP.call("WPMotion.update", [JSON.stringify({ params: params(1), scope: "selected", text: tagged(E.toMarkup(words)) })])
+                    .then(function (r) { say(r.updated + " legenda atualizada com o texto e o estilo do painel.", "ok"); });
+            }
+            SEL.items = d.items; SEL.w = d.w; SEL.h = d.h; detectRoles(SEL.items); renderSel();
+            return animateSel();
+        }).catch(function (e) { say(e.message, "error"); }).then(function () { btn.disabled = false; });
     });
 
     // ---------- SRT ----------
@@ -820,11 +961,226 @@
         } catch (e) { say("Arquivo de presets inválido: " + e.message, "error"); }
     });
 
+    // ---------- seleção da timeline ----------
+    // Cada graphic selecionado entra no tempo em que está na timeline (o template anima a partir do início do clipe).
+    // Papel (principal / apoio / ligação): marcação do nosso template > tamanho da fonte > ordem (INFERIDO; clique troca).
+    var SEL = { items: [], w: 1080, h: 1920, basis: "" };
+    var LINKW = ("a o as os e é de da do das dos em no na nos nas um uma para pra pro com por que se ao à ou mas " +
+        "the of to and in on").split(" ");
+    var ROLE = { "-1": "mantém", 0: "apoio", 1: "principal", 2: "ligação" };
+    function isLink(text) {
+        var ws = E.plain(text).toLowerCase().split(/\s+/).filter(Boolean);
+        return ws.length > 0 && ws.length <= 2 && ws.every(function (w) { return LINKW.indexOf(w.replace(/[.,!?:;]/g, "")) >= 0; });
+    }
+    function detectRoles(items) {
+        // legendas em sequência (ninguém junto na tela) não têm hierarquia: cada uma mantém o texto
+        var together = items.filter(function (a) { return items.some(function (b) { return b !== a && b.start < a.end - 0.05 && b.end > a.start + 0.05; }); });
+        items.forEach(function (it) { if (together.indexOf(it) < 0) { it.lv = -1; it.mixed = true; it.alone = true; } });
+        if (together.length < items.length) { var only = together; if (!only.length) { SEL.basis = "sem hierarquia (legendas em sequência)"; return; } items = only; }
+        var sizes = items.map(function (i) { return i.size; }).filter(function (s) { return s > 0; });
+        var max = Math.max.apply(null, sizes.concat([0])), min = Math.min.apply(null, sizes.concat([max]));
+        var bySize = sizes.length === items.length && max > min * 1.12;
+        items.forEach(function (it) {
+            it.mixed = false;
+            if (it.mt && /[*_]/.test(it.text)) {
+                var t = it.text.trim();
+                if (/^\*[^*_]+\*$/.test(t.replace(/\*\s+\*/g, " "))) { it.lv = 1; return; }
+                if (/^_[^*_]+_$/.test(t.replace(/_\s+_/g, " "))) { it.lv = 2; return; }
+                it.lv = -1; it.mixed = true; return;   // frase com níveis por palavra: o texto fica como está
+            }
+            if (bySize) it.lv = it.size >= max * 0.9 ? 1 : (it.size <= max * 0.7 ? 2 : 0);
+            else it.lv = isLink(it.text) ? 2 : 0;
+        });
+        // sem diferença de tamanho: o último a entrar (fecho da frase) é o principal
+        if (!items.some(function (i) { return i.lv === 1 || i.lv === -1; })) {
+            for (var k = items.length - 1; k >= 0; k--) if (items[k].lv === 0) { items[k].lv = 1; break; }
+        }
+        SEL.basis = bySize ? "pelo tamanho da fonte" : "pela ordem na timeline";
+    }
+    function roleText(it) {
+        if (it.lv < 0) return it.text;
+        return E.toMarkup(E.parseMarkup(E.plain(it.text)).map(function (o) { return { w: o.w, lv: it.lv, br: o.br }; }));
+    }
+    function fmtT(s) { var m = Math.floor(s / 60), r = s - m * 60; return m + ":" + (r < 10 ? "0" : "") + r.toFixed(2); }
+
+    function renderSel() {
+        var st = $("selStage"), list = $("selList");
+        st.querySelectorAll(".mt-sel-item").forEach(function (n) { n.remove(); });
+        list.innerHTML = "";
+        if (!SEL.items.length) { st.style.display = "none"; $("selHint").textContent = "Nenhum graphic lido ainda."; return; }
+        st.style.display = "";
+        var W = st.parentNode.clientWidth - 24 || 280, H = Math.min(380, W * SEL.h / SEL.w), FW = H * SEL.w / SEL.h, k = FW / SEL.w;
+        st.style.width = FW + "px"; st.style.height = H + "px";
+        SEL.items.forEach(function (it, i) {
+            var lv = it.lv < 0 ? 0 : it.lv, fo = lv === 1 ? S.fonts[1] : S.fonts[0];
+            var el = document.createElement("div");
+            el.className = "mt-sel-item";
+            el.textContent = E.plain(it.text);
+            el.style.left = it.x + "%"; el.style.top = it.y + "%";
+            el.style.fontFamily = "'" + cssFamily(fo.ps) + "'"; el.style.fontWeight = cssWeight(fo.ps);
+            el.style.fontSize = Math.max(6, (lv === 2 ? S.linkSize : fo.size) * k) + "px";
+            el.style.color = [S.colors.pad, S.colors.hi, S.colors.link][lv];
+            el.title = ROLE[it.lv] + " · entra em " + fmtT(it.start);
+            dragSel(el, it, FW, H);
+            st.appendChild(el);
+
+            var row = document.createElement("div"); row.className = "mt-sel-row";
+            var tm = document.createElement("span"); tm.className = "tm"; tm.textContent = "V" + (it.track + 1) + " · " + fmtT(it.start);
+            var tx = document.createElement("span"); tx.className = "t"; tx.textContent = E.plain(it.text).replace(/\n/g, " / ");
+            var rl = document.createElement("button"); rl.className = "mt-word lv" + (it.lv < 0 ? 0 : it.lv); rl.textContent = ROLE[it.lv];
+            rl.addEventListener("click", function () {
+                var order = it.mixed ? [-1, 0, 1, 2] : [0, 1, 2];
+                it.lv = order[(order.indexOf(it.lv) + 1) % order.length]; renderSel();
+            });
+            var kind = document.createElement("span"); kind.className = "tag"; kind.textContent = it.mt ? "MotionText" : "converte";
+            kind.title = it.mt ? "Atualizado no lugar" : "Graphic de outro template: fica desligado e o MotionText entra numa faixa acima, no mesmo tempo";
+            row.appendChild(tm); row.appendChild(tx); row.appendChild(rl); row.appendChild(kind);
+            list.appendChild(row);
+        });
+        $("selHint").textContent = SEL.items.length + " graphic(s), papéis " + SEL.basis + ". Arraste no quadro para posicionar; clique no papel para trocar.";
+    }
+
+    // arrastar: posição em % do quadro (é o que o template usa); perto do centro gruda na linha do meio
+    var posQueue = {}, posTimer = null;
+    function pushPos(it) {
+        if (!it.mt || !$("selLive").checked) return;
+        posQueue[it.key] = { key: it.key, x: Math.round(it.x * 10) / 10, y: Math.round(it.y * 10) / 10 };
+        if (posTimer) return;
+        posTimer = setTimeout(function () {
+            var items = Object.keys(posQueue).map(function (k) { return posQueue[k]; });
+            posQueue = {}; posTimer = null;
+            WP.call("WPMotion.setPos", [JSON.stringify({ items: items })]).catch(function (e) { say(e.message, "error"); });
+        }, 120);
+    }
+    function dragSel(el, it, FW, H) {
+        el.addEventListener("pointerdown", function (ev) {
+            ev.preventDefault(); el.setPointerCapture(ev.pointerId); el.classList.add("drag");
+            var o = { x: ev.clientX, y: ev.clientY, ix: it.x, iy: it.y };
+            function mv(e) {
+                it.x = Math.max(0, Math.min(100, o.ix + (e.clientX - o.x) / FW * 100));
+                it.y = Math.max(0, Math.min(100, o.iy + (e.clientY - o.y) / H * 100));
+                if (Math.abs(it.x - 50) < 1.5) it.x = 50;
+                el.style.left = it.x + "%"; el.style.top = it.y + "%";
+                pushPos(it);
+            }
+            function up() { el.classList.remove("drag"); el.removeEventListener("pointermove", mv); el.removeEventListener("pointerup", up); pushPos(it); }
+            el.addEventListener("pointermove", mv); el.addEventListener("pointerup", up);
+        });
+    }
+
+    // fundo da prévia: o quadro em que mais graphics estão na tela, exportado sem eles
+    function loadFrame() {
+        if (!SEL.items.length) return Promise.resolve();
+        var best = SEL.items[0].start, nBest = 0;
+        SEL.items.forEach(function (c) {
+            var t = c.start + 0.05, n = SEL.items.filter(function (o) { return o.start <= t && o.end > t; }).length;
+            if (n > nBest) { nBest = n; best = t; }
+        });
+        var base = pathMod.join(require("os").tmpdir(), "willian-mt-frame").replace(/\\/g, "/");
+        return WP.call("WPMotion.frame", [JSON.stringify({ t: best, path: base, hide: SEL.items.map(function (i) { return i.key; }) })])
+            .then(function (d) { $("selBg").src = "file:///" + d.file.replace(/\\/g, "/") + "?" + Date.now(); })
+            .catch(function (e) { say("Sem quadro de fundo: " + e.message); });
+    }
+    // graphics selecionados com texto: o dos gráficos nativos do Premiere vem do projeto exportado (ver engine.nativeTexts)
+    function readGraphicsFull() {
+        return WP.call("WPMotion.readGraphics").then(function (d) {
+            if (!d.items.some(function (i) { return i.nat; })) return d;
+            var f = pathMod.join(require("os").tmpdir(), "willian-mt-textos.prproj").replace(/\\/g, "/");
+            return WP.call("WPMotion.exportSeq", [f]).then(function () {
+                var map = E.nativeTexts(f), lost = 0;
+                d.items.forEach(function (i) {
+                    if (!i.nat) return;
+                    var hit = map[i.ticks] || map["0:" + i.ticks.split(":")[1]];
+                    if (hit) { i.text = hit.text; i.font = hit.font; } else lost++;
+                });
+                d.items = d.items.filter(function (i) { return i.text; });
+                if (!d.items.length) throw new Error("Não consegui ler o texto dos gráficos selecionados.");
+                d.lost = lost;
+                return d;
+            });
+        });
+    }
+    function readSel() {
+        return readGraphicsFull().then(function (d) {
+            SEL.items = d.items; SEL.w = d.w; SEL.h = d.h;
+            detectRoles(SEL.items); renderSel();
+            say(d.items.length + " graphic(s) lidos da timeline.", "ok");
+            return loadFrame();
+        }).catch(function (e) { SEL.items = []; renderSel(); say(e.message, "error"); });
+    }
+    $("selRead").addEventListener("click", readSel);
+    $("selFrame").addEventListener("click", loadFrame);
+    $("selApply").addEventListener("click", function () {
+        if (!SEL.items.length) { say("Leia a seleção da timeline primeiro.", "error"); return; }
+        var btn = this; btn.disabled = true;
+        animateSel().catch(function (e) { say(e.message, "error"); }).then(function () { btn.disabled = false; });
+    });
+    function animateSel() {
+        return refreshSeq().then(ensureTemplate).then(function (mogrt) {
+            var p = params(1); delete p["Posição horizontal (%)"]; delete p["Posição vertical (%)"];
+            var items = SEL.items.map(function (it) { return { key: it.key, text: tagged(roleText(it)), x: it.x, y: it.y }; });
+            say("Animando " + items.length + " graphic(s)…");
+            return WP.call("WPMotion.animateGraphics", [JSON.stringify({ mogrt: mogrt.replace(/\\/g, "/"), params: p, items: items })]);
+        }).then(function (d) {
+            d.items.forEach(function (r) {
+                SEL.items.forEach(function (it) { if (it.key === r.old) { it.key = r.key; it.mt = true; it.text = roleText(it); } });
+            });
+            renderSel();
+            say(d.items.length + " graphic(s) animados, cada um no seu tempo." + (d.problems ? " Avisos: " + d.problems : ""), d.problems ? "error" : "ok");
+        });
+    }
+
+    // ---------- combinação nos graphics selecionados ----------
+    // Cada graphic mantém o texto e o tempo da timeline e recebe o estilo de uma camada da combinação: o principal
+    // (papel detectado ou escolhido) recebe a camada principal; apoio e ligação, as outras, em ordem. O empilhamento
+    // sai do layoutCombo com os tempos reais, então a hierarquia e o alinhamento valem também aqui.
+    function renderComboSelect() {
+        var sel = $("selCombo"); if (!sel || sel.options.length) return;
+        NAT.combos.forEach(function (cb, i) {
+            var o = document.createElement("option"); o.value = String(i);
+            o.textContent = "Will Lettering " + (i + 1) + " · " + cb.layers.length + " camadas · " + cb.layers.map(function (l) { return l.text.replace(/\r|\n/g, " "); }).join(" / ").slice(0, 40);
+            sel.appendChild(o);
+        });
+    }
+    function comboForSelection(cb) {
+        var lay = layoutCombo(cb.layers, 50), mains = lay.filter(function (l) { return l.main; }), rest = lay.filter(function (l) { return !l.main; });
+        if (!rest.length) rest = mains;
+        var t0 = Math.min.apply(null, SEL.items.map(function (i) { return i.start; })), nm = 0, nr = 0;
+        var pseudo = SEL.items.map(function (it) {
+            var src = it.lv === 1 ? mains[nm++ % mains.length] : rest[nr++ % rest.length];
+            var l = JSON.parse(JSON.stringify(src));
+            l.text = E.plain(it.text); l.delay = it.start - t0; l.dur = it.end - it.start; l.key = it.key;
+            if (it.lv === 1 && !src.main) l.size = Math.round(l.size / 0.58);
+            return l;
+        });
+        return layoutCombo(pseudo, S.posY);
+    }
+    $("selComboApply").addEventListener("click", function () {
+        if (!SEL.items.length) { say("Leia a seleção da timeline primeiro.", "error"); return; }
+        var cb = NAT.combos[+$("selCombo").value]; if (!cb) return;
+        var btn = this; btn.disabled = true;
+        refreshSeq().then(ensureTemplate).then(function (mogrt) {
+            var items = comboForSelection(cb).map(function (l) {
+                var b = comboLayer(l, l.text), p = Object.assign({}, TEMPLATE_DEFAULTS, b.mt);
+                delete p["Posição horizontal (%)"]; delete p["Posição vertical (%)"];
+                return { key: l.key, text: b.text, x: l.pos[0], y: l.pos[1], params: p, scale: b.scale };
+            });
+            say("Aplicando a combinação em " + items.length + " graphic(s)…");
+            return WP.call("WPMotion.animateGraphics", [JSON.stringify({ mogrt: mogrt.replace(/\\/g, "/"), params: {}, items: items })]);
+        }).then(function (d) {
+            d.items.forEach(function (r) { SEL.items.forEach(function (it) { if (it.key === r.old) { it.key = r.key; it.mt = true; } }); });
+            return readSel().then(function () {
+                say("Combinação aplicada em " + d.items.length + " graphic(s), cada um no seu tempo." + (d.problems ? " Avisos: " + d.problems : ""), d.problems ? "error" : "ok");
+            });
+        }).catch(function (e) { say(e.message, "error"); }).then(function () { btn.disabled = false; });
+    });
+
     // gancho para testes automáticos pela porta de depuração (carregar SRT sem arrastar arquivo)
-    window.MT_test = { readSrtFile: readSrtFile, state: function () { return S; } };
+    window.MT_test = { readSrtFile: readSrtFile, state: function () { return S; }, sel: SEL, readSel: readSel, renderSel: renderSel };
 
     // ---------- início ----------
     WP.loadHost("motiontext/host.jsx").then(refreshSeq).then(renderStage)
+        .then(function () { setTimeout(loadProjectFonts, 600); })
         .catch(function (e) { say("Abra uma sequência para usar o painel. (" + e.message + ")"); });
     renderAll(); renderPresets();
     setTimeout(loadFonts, 50);

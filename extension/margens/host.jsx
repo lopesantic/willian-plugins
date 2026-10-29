@@ -4,7 +4,7 @@
 // Toda função devolve uma string JSON: {"ok":true,...} ou {"ok":false,"error":"..."}.
 
 var WPMargens = (function () {
-    var BIN_NAME = "Margens (Willian Plugins)";
+    var BIN_NAME = "Margens (Sharp Frame)", BIN_OLD = "Margens (Willian Plugins)";
     var ITEM_PREFIX = "WP Guia ";
     var GUIDE_H = 1920;
     var GUIDES = {
@@ -62,7 +62,7 @@ var WPMargens = (function () {
         var root = app.project.rootItem;
         for (var i = 0; i < root.children.numItems; i++) {
             var it = root.children[i];
-            if (it.type === ProjectItemType.BIN && it.name === BIN_NAME) return it;
+            if (it.type === ProjectItemType.BIN && (it.name === BIN_NAME || it.name === BIN_OLD)) { it.name = BIN_NAME; return it; }
         }
         return root.createBin(BIN_NAME);
     }

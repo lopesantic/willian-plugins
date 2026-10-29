@@ -1,16 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Willian Plugins: um pacote, um painel por ferramenta. Sem login, sem servidor. -->
-<ExtensionManifest Version="7.0" ExtensionBundleId="com.willian.plugins" ExtensionBundleVersion="1.7.0" ExtensionBundleName="Willian Plugins" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<!-- Sharp Frame: um painel só (hub) com todas as ferramentas em abas. Sem login, sem servidor.
+     O ID interno continua com.willian.plugins para o instalador atualizar por cima da instalação antiga. -->
+<ExtensionManifest Version="7.0" ExtensionBundleId="com.willian.plugins" ExtensionBundleVersion="1.8.0" ExtensionBundleName="Sharp Frame" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ExtensionList>
-    <Extension Id="com.willian.plugins.margens" Version="0.1.0"/>
-    <Extension Id="com.willian.plugins.autocut" Version="0.1.0"/>
-    <Extension Id="com.willian.plugins.beatmarker" Version="0.1.0"/>
-    <Extension Id="com.willian.plugins.autosoundfx" Version="0.1.0"/>
-    <Extension Id="com.willian.plugins.autojcut" Version="0.1.0"/>
-    <Extension Id="com.willian.plugins.lutlibrary" Version="0.1.0"/>
-    <Extension Id="com.willian.plugins.transcrever" Version="0.1.0"/>
-    <Extension Id="com.willian.plugins.animar" Version="0.1.0"/>
-    <Extension Id="com.willian.plugins.motiontext" Version="0.3.0"/>
+    <Extension Id="com.willian.plugins.hub" Version="0.2.0"/>
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList><Host Name="PPRO" Version="[25.0,99.9]"/></HostList>
@@ -18,130 +11,19 @@
     <RequiredRuntimeList><RequiredRuntime Name="CSXS" Version="11.0"/></RequiredRuntimeList>
   </ExecutionEnvironment>
   <DispatchInfoList>
-    <Extension Id="com.willian.plugins.margens">
+    <Extension Id="com.willian.plugins.hub">
       <DispatchInfo>
         <Resources>
-          <MainPath>./margens/index.html</MainPath>
+          <MainPath>./hub/index.html</MainPath>
           <CEFCommandLine><Parameter>--enable-nodejs</Parameter><Parameter>--mixed-context</Parameter></CEFCommandLine>
         </Resources>
         <Lifecycle><AutoVisible>true</AutoVisible></Lifecycle>
         <UI>
           <Type>Panel</Type>
-          <Menu>Willian - Margens</Menu>
-          <Geometry><Size><Height>320</Height><Width>300</Width></Size></Geometry>
+          <Menu>Sharp Frame</Menu>
+          <Geometry><Size><Height>820</Height><Width>560</Width></Size><MinSize><Height>360</Height><Width>300</Width></MinSize></Geometry>
         </UI>
       </DispatchInfo>
     </Extension>
-    <Extension Id="com.willian.plugins.autocut">
-      <DispatchInfo>
-        <Resources>
-          <MainPath>./autocut/index.html</MainPath>
-          <CEFCommandLine><Parameter>--enable-nodejs</Parameter><Parameter>--mixed-context</Parameter></CEFCommandLine>
-        </Resources>
-        <Lifecycle><AutoVisible>true</AutoVisible></Lifecycle>
-        <UI>
-          <Type>Panel</Type>
-          <Menu>Willian - AutoCut</Menu>
-          <Geometry><Size><Height>620</Height><Width>320</Width></Size></Geometry>
-        </UI>
-      </DispatchInfo>
-    </Extension>
-    <Extension Id="com.willian.plugins.beatmarker">
-      <DispatchInfo>
-        <Resources>
-          <MainPath>./beatmarker/index.html</MainPath>
-          <CEFCommandLine><Parameter>--enable-nodejs</Parameter><Parameter>--mixed-context</Parameter></CEFCommandLine>
-        </Resources>
-        <Lifecycle><AutoVisible>true</AutoVisible></Lifecycle>
-        <UI>
-          <Type>Panel</Type>
-          <Menu>Willian - BeatMarker</Menu>
-          <Geometry><Size><Height>600</Height><Width>320</Width></Size></Geometry>
-        </UI>
-      </DispatchInfo>
-    </Extension>
-    <Extension Id="com.willian.plugins.autosoundfx">
-      <DispatchInfo>
-        <Resources>
-          <MainPath>./autosoundfx/index.html</MainPath>
-          <CEFCommandLine><Parameter>--enable-nodejs</Parameter><Parameter>--mixed-context</Parameter></CEFCommandLine>
-        </Resources>
-        <Lifecycle><AutoVisible>true</AutoVisible></Lifecycle>
-        <UI>
-          <Type>Panel</Type>
-          <Menu>Willian - AutoSoundFX</Menu>
-          <Geometry><Size><Height>620</Height><Width>340</Width></Size></Geometry>
-        </UI>
-      </DispatchInfo>
-    </Extension>
-    <Extension Id="com.willian.plugins.autojcut">
-      <DispatchInfo>
-        <Resources>
-          <MainPath>./autojcut/index.html</MainPath>
-          <CEFCommandLine><Parameter>--enable-nodejs</Parameter><Parameter>--mixed-context</Parameter></CEFCommandLine>
-        </Resources>
-        <Lifecycle><AutoVisible>true</AutoVisible></Lifecycle>
-        <UI>
-          <Type>Panel</Type>
-          <Menu>Willian - AutoJCut</Menu>
-          <Geometry><Size><Height>380</Height><Width>320</Width></Size></Geometry>
-        </UI>
-      </DispatchInfo>
-    </Extension>
-    <Extension Id="com.willian.plugins.lutlibrary">
-      <DispatchInfo>
-        <Resources>
-          <MainPath>./lutlibrary/index.html</MainPath>
-          <CEFCommandLine><Parameter>--enable-nodejs</Parameter><Parameter>--mixed-context</Parameter><Parameter>--allow-file-access-from-files</Parameter></CEFCommandLine>
-        </Resources>
-        <Lifecycle><AutoVisible>true</AutoVisible></Lifecycle>
-        <UI>
-          <Type>Panel</Type>
-          <Menu>Willian - LUT Library</Menu>
-          <Geometry><Size><Height>680</Height><Width>360</Width></Size></Geometry>
-        </UI>
-      </DispatchInfo>
-    </Extension>
-    <Extension Id="com.willian.plugins.transcrever">
-      <DispatchInfo>
-        <Resources>
-          <MainPath>./transcrever/index.html</MainPath>
-          <CEFCommandLine><Parameter>--enable-nodejs</Parameter><Parameter>--mixed-context</Parameter></CEFCommandLine>
-        </Resources>
-        <Lifecycle><AutoVisible>true</AutoVisible></Lifecycle>
-        <UI>
-          <Type>Panel</Type>
-          <Menu>Willian - Transcrever</Menu>
-          <Geometry><Size><Height>720</Height><Width>380</Width></Size></Geometry>
-        </UI>
-      </DispatchInfo>
-    </Extension>
-    <Extension Id="com.willian.plugins.animar">
-      <DispatchInfo>
-        <Resources>
-          <MainPath>./animar/index.html</MainPath>
-          <CEFCommandLine><Parameter>--enable-nodejs</Parameter><Parameter>--mixed-context</Parameter></CEFCommandLine>
-        </Resources>
-        <Lifecycle><AutoVisible>true</AutoVisible></Lifecycle>
-        <UI>
-          <Type>Panel</Type>
-          <Menu>Willian - Animar</Menu>
-          <Geometry><Size><Height>680</Height><Width>340</Width></Size></Geometry>
-        </UI>
-      </DispatchInfo>
-    </Extension>
-      <Extension Id="com.willian.plugins.motiontext">
-      <DispatchInfo>
-        <Resources>
-          <MainPath>./motiontext/index.html</MainPath>
-          <CEFCommandLine><Parameter>--enable-nodejs</Parameter><Parameter>--mixed-context</Parameter></CEFCommandLine>
-        </Resources>
-        <Lifecycle><AutoVisible>true</AutoVisible></Lifecycle>
-        <UI>
-          <Type>Panel</Type>
-          <Menu>Willian - MotionText</Menu>
-          <Geometry><Size><Height>760</Height><Width>360</Width></Size></Geometry>
-        </UI>
-      </DispatchInfo>
-    </Extension></DispatchInfoList>
+  </DispatchInfoList>
 </ExtensionManifest>

@@ -105,11 +105,16 @@
         return [
             H,
             'var F = [' + q(fontA) + ', ' + q(fontB) + ', ' + q(fontA) + '];',
+            // v3: as fontes vêm no fim do texto ("...§FontePadrão|FonteDestaque", nomes PostScript); um template só
+            // serve para qualquer fonte instalada e trocar de fonte não precisa mais do After Effects
+            'var raw = (value.text !== undefined) ? value.text : ("" + value);',
+            'var fm = raw.match(/\\u00a7([^|\\u00a7]*)\\|([^\\u00a7]*)$/);',
+            'if (fm) { if (fm[1]) { F[0] = fm[1]; F[2] = fm[1]; } if (fm[2]) F[1] = fm[2]; raw = raw.slice(0, raw.length - fm[0].length); }',
             'var SZ = [e("MT_TamPadrao")(1) * 2, e("MT_TamDestaque")(1) * 2, e("MT_TamLigacao")(1) * 2];',
             'var TR = [(e("MT_TrkPadrao")(1) - 50) * 4, (e("MT_TrkDestaque")(1) - 50) * 4, (e("MT_TrkPadrao")(1) - 50) * 4];',
             'var CO = [e("MT_CorPadrao")(1), e("MT_CorDestaque")(1), e("MT_CorLigacao")(1)];',
             'var WS = (e("MT_EspPalavras")(1) - 50) * 4;',
-            'var src = (value.text !== undefined) ? value.text : ("" + value);',
+            'var src = raw;',
             'var out = "", lv = [], cur = 0;',
             'for (var i = 0; i < src.length; i++) {',
             '  var ch = src.charAt(i);',
@@ -186,6 +191,8 @@
         var doc = src.value;
         doc.font = spec.fontA; doc.fontSize = 90; doc.fillColor = [1, 1, 1];
         doc.justification = ParagraphJustification.CENTER_JUSTIFY;
+        // contorno por trás do preenchimento (o padrão do AE pinta o contorno por cima e a letra some: MEDIDO 29/10/2026)
+        try { doc.applyStroke = true; doc.strokeColor = [0, 0, 0]; doc.strokeWidth = 0; doc.strokeOverFill = false; } catch (eS) { step("contorno: " + eS); }
         src.setValue(doc);
         src.expression = textExpr(spec.fontA, spec.fontB);
         tp.property("ADBE Text More Options").property("ADBE Text Anchor Point Option").setValue(2);   // agrupar por palavra
@@ -205,15 +212,16 @@
         // efeitos de estilo (ordem importa): degradê recortado no texto, bordas, relevo, brilho, luz, sombra
         var lfx = layer.property("ADBE Effect Parade");
         var ramp = lfx.addProperty("ADBE Ramp");
-        ramp.property("ADBE Ramp-0001").expression = [H, TFULL, 'var r = sourceRectAtTime(tf, false); [r.left + r.width / 2, r.top];'].join("\n");
-        ramp.property("ADBE Ramp-0003").expression = [H, TFULL, 'var r = sourceRectAtTime(tf, false); [r.left + r.width / 2, r.top + r.height];'].join("\n");
+        // pontos de efeito na camada de texto ficam no espaço da composição (MEDIDO 29/10/2026: com o retângulo cru o degradê caía no topo do quadro)
+        ramp.property("ADBE Ramp-0001").expression = [H, TFULL, 'var r = sourceRectAtTime(tf, false); toComp([r.left + r.width / 2, r.top]);'].join("\n");
+        ramp.property("ADBE Ramp-0003").expression = [H, TFULL, 'var r = sourceRectAtTime(tf, false); toComp([r.left + r.width / 2, r.top + r.height]);'].join("\n");
         ramp.property("ADBE Ramp-0002").expression = [H, 'e("MT_GradA")(1);'].join("\n");
         ramp.property("ADBE Ramp-0004").expression = [H, 'e("MT_GradB")(1);'].join("\n");
         ramp.property("ADBE Ramp-0007").expression = [H, '100 - e("MT_Grad")(1);'].join("\n");
         var matte = lfx.addProperty("ADBE Set Matte3");
         var turb = lfx.addProperty("ADBE Turbulent Displace");
-        turb.property("ADBE Turbulent Displace-0002").expression = [H, 'e("MT_Bordas")(1) / 4;'].join("\n");
-        turb.property("ADBE Turbulent Displace-0003").setValue(14);
+        turb.property("ADBE Turbulent Displace-0002").expression = [H, 'e("MT_Bordas")(1) / 2.5;'].join("\n");
+        turb.property("ADBE Turbulent Displace-0003").setValue(9);
         turb.property("ADBE Turbulent Displace-0006").expression = 'time * 120;';
         var bev = lfx.addProperty("ADBE Bevel Alpha");
         bev.property("ADBE Bevel Alpha-0001").expression = [H, 'e("MT_Relevo")(1) / 10;'].join("\n");
@@ -224,16 +232,18 @@
         glow.property("ADBE Glo2-0004").expression = [H, 'e("MT_Brilho")(1) / 40;'].join("\n");
         var sweep = lfx.addProperty("CC Light Sweep");
         sweep.property("CC Light Sweep-0001").expression = [H, TFULL, 'var r = sourceRectAtTime(tf, false);',
-            'var x = linear(time, 0.15, 1.35, r.left - r.width * 0.3, r.left + r.width * 1.3); [x, r.top + r.height / 2];'].join("\n");
+            // passa de novo a cada 2,2 s enquanto o texto está na tela (antes passava uma vez só, até 1,35 s)
+            'var lt = (time - 0.15) % 2.2; var x = linear(lt, 0, 1.2, r.left - r.width * 0.3, r.left + r.width * 1.3); toComp([x, r.top + r.height / 2]);'].join("\n");
         sweep.property("CC Light Sweep-0002").setValue(15);
         sweep.property("CC Light Sweep-0004").setValue(60);
         sweep.property("CC Light Sweep-0005").expression = [H, 'e("MT_Luz")(1);'].join("\n");
         sweep.property("CC Light Sweep-0006").setValue(0);
         // sombra projetada: -0001 cor, -0002 opacidade (0-255), -0003 direção, -0004 distância, -0005 suavidade
         var sh = lfx.addProperty("ADBE Drop Shadow");
+        // distância e suavidade crescem com a força (com 6 e 14 fixos a sombra mal aparecia em 1080 px: MEDIDO)
         sh.property("ADBE Drop Shadow-0003").setValue(135);
-        sh.property("ADBE Drop Shadow-0004").setValue(6);
-        sh.property("ADBE Drop Shadow-0005").setValue(14);
+        sh.property("ADBE Drop Shadow-0004").expression = [H, '4 + e("MT_Sombra")(1) * 0.14;'].join("\n");
+        sh.property("ADBE Drop Shadow-0005").expression = [H, '8 + e("MT_Sombra")(1) * 0.3;'].join("\n");
         sh.property("ADBE Drop Shadow-0002").expression = 'thisComp.layer("MT Controles").effect("MT_Sombra")(1) * 2.55;';
 
         // animadores de entrada: um por animação; a escolhida no menu é a única com quantidade diferente de zero
@@ -305,7 +315,7 @@
         lfill.property("ADBE Vector Fill Color").expression = [H, 'e("MT_CorLinha")(1);'].join("\n");
         var ltr = ln.property("ADBE Transform Group");
         ltr.property("ADBE Position").expression = [H, TFULL, 'var r = thisComp.layer("Texto").sourceRectAtTime(tf, false);',
-            'thisComp.layer("Texto").transform.position + [0, r.height / 2 + e("MT_Linha")(1) + 10];'].join("\n");
+            'thisComp.layer("Texto").transform.position + [0, r.height / 2 + e("MT_Linha")(1) / 2 + 6];'].join("\n");
         ltr.property("ADBE Opacity").expression = [H, EXITF, '(e("MT_Linha")(1) > 0) ? 100 * xf : 0;'].join("\n");
 
         // criar camadas invalida as referências antigas aos efeitos/propriedades (MEDIDO): busca de novo pelo caminho
@@ -332,6 +342,30 @@
         }
         if (J.debug) {
             try { comp.saveFrameToPng(1.0, File(J.outDir + "/" + spec.name + "_ae.png")); } catch (ef) { step("png: " + ef); }
+        }
+        // casos de teste dos estilos: liga controles, salva um quadro de cada e volta ao padrão (só em depuração)
+        if (J.debugCases) {
+            var tfx = comp.layer("Texto").property("ADBE Effect Parade"), names = ["ADBE Ramp", "ADBE Turbulent Displace", "ADBE Drop Shadow", "CC Light Sweep"];
+            for (var nf = 0; nf < names.length; nf++) {
+                var ef2 = tfx.property(names[nf]), desc = names[nf] + ":";
+                for (var np = 1; np <= ef2.numProperties; np++) {
+                    var pp2 = ef2.property(np), vv = "";
+                    try { vv = String(pp2.valueAtTime(1, false)).substr(0, 40); } catch (ev2) { vv = "-"; }
+                    desc += " [" + pp2.matchName.replace(names[nf] + "-", "") + " " + pp2.name + "=" + vv + "]";
+                }
+                step(desc);
+            }
+            var cfx = comp.layer("MT Controles").property("ADBE Effect Parade");
+            for (var dc = 0; dc < J.debugCases.length; dc++) {
+                var cs2 = J.debugCases[dc];
+                for (var vk in cs2.vals) if (cs2.vals.hasOwnProperty(vk)) cfx.property(vk).property(1).setValue(cs2.vals[vk]);
+                var pf = File(J.outDir + "/dbg_" + cs2.name + ".png");
+                if (pf.exists) pf.remove();
+                try { comp.saveFrameToPng(cs2.t || 1.2, pf); } catch (ep) { step("png " + cs2.name + ": " + ep); }
+                for (var wq = 0; wq < 80 && !pf.exists; wq++) $.sleep(100);
+                for (var ri = 0; ri < CTRLS.length; ri++) if (cs2.vals.hasOwnProperty(CTRLS[ri][0])) cfx.property(CTRLS[ri][0]).property(1).setValue(CTRLS[ri][2]);
+            }
+            step("casos de teste: " + J.debugCases.length);
         }
 
         step(spec.name + ": diagnostico ok");

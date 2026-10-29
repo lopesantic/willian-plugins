@@ -319,3 +319,47 @@ video.mt-thumb { max-height: 64px; max-width: 100%; border-radius: 6px; object-f
 .mt-sub { margin: 16px 0 8px; font-size: 12px; color: var(--muted); }
 .mt-block { display: inline-block; }
 #looks .chip { font-size: 10.5px; }
+/* painel dentro da interface única (hub): o cabeçalho de marca fica na barra lateral */
+html.wp-embedded .wp-header { display: none; }
+html.wp-embedded body { padding-top: 10px; }
+
+/* AutoCut: barra de visão geral do gráfico com zoom */
+.ac-overview { position: relative; height: 8px; margin-top: 6px; background: var(--well); border-radius: 4px; cursor: pointer; }
+.ac-overview i { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: var(--grad); border-radius: 4px; opacity: .8; }
+.ac-zoom { align-items: center; margin-top: 6px; }
+.ac-zoom .chip { flex: 0 0 auto; min-width: 30px; }
+.ac-hint { flex: 1; margin: 0; font-size: 10.5px; }
+canvas#wave { cursor: grab; }
+
+/* MotionText · aba Seleção (graphics da timeline arrastáveis sobre o quadro) */
+.mt-sel-stage { position: relative; margin: 8px auto; background: #000; border-radius: 6px; overflow: hidden; touch-action: none; }
+.mt-sel-stage img { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .85; }
+.mt-sel-stage img:not([src]) { display: none; }
+.mt-sel-center { position: absolute; left: 50%; top: 0; bottom: 0; border-left: 1px dashed rgba(255,255,255,.18); pointer-events: none; }
+.mt-sel-item { position: absolute; transform: translate(-50%, -50%); white-space: pre; line-height: 1; text-align: center; padding: 2px 4px;
+  border: 1px dashed transparent; border-radius: 4px; cursor: grab; user-select: none; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+.mt-sel-item:hover, .mt-sel-item.drag { border-color: rgba(255,255,255,.65); }
+.mt-sel-item.drag { cursor: grabbing; }
+.mt-sel-list { margin: 6px 0; }
+.mt-sel-row { display: flex; gap: 6px; align-items: center; font-size: 11px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+.mt-sel-row .tm { color: var(--faint); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+.mt-sel-row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt-sel-row .mt-word { flex: 0 0 auto; margin: 0; }
+
+/* aviso sempre à vista: em painel longo ele ficava no fim da rolagem e os botões pareciam não fazer nada */
+body > .status { position: sticky; bottom: 6px; z-index: 20; box-shadow: 0 6px 18px rgba(0,0,0,.45); }
+
+.mt-combo-row select { flex: 1; min-width: 0; }
+.mt-combo-row button { flex: 0 0 auto; }
+
+/* MotionText · seletor de fontes */
+.mt-fontpop { position: fixed; z-index: 50; max-height: 320px; overflow-y: auto; background: var(--panel, #17171c); border: 1px solid rgba(255,255,255,.14);
+  border-radius: 8px; box-shadow: 0 10px 28px rgba(0,0,0,.55); padding: 4px; }
+.mt-fontpop.hidden { display: none; }
+.mt-fp-head { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); padding: 6px 8px 3px; }
+.mt-fp-item { padding: 5px 8px; border-radius: 5px; cursor: pointer; font-size: 15px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; }
+.mt-fp-item small { font-family: "Segoe UI", sans-serif; font-size: 10px; color: var(--faint); margin-left: 6px; }
+.mt-fp-item:hover, .mt-fp-item.on { background: rgba(236,72,153,.22); }
+.mt-fp-note { font-size: 10.5px; color: var(--faint); padding: 6px 8px; white-space: normal; }
+.mt-projfonts { margin: 4px 0 0; }
+.mt-projfonts b { color: #fff; font-weight: 600; }

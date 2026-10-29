@@ -33,6 +33,17 @@ var WPMotion = (function () {
         return o;
     }
 
+    // fim do texto com as fontes (sinal de parágrafo + "FonteA|FonteB", ver engine.fontTag): fica no template, não no nome
+    // nem na leitura. O sinal vai por código (167): o ExtendScript pode ler este arquivo sem BOM como ANSI.
+    var SEC = String.fromCharCode(167);
+    function untag(s) { s = String(s); var i = s.lastIndexOf(SEC); return i >= 0 ? s.substring(0, i) : s; }
+    function readText(props) {
+        var p = props.getParamForDisplayName("Texto");
+        if (!p) return "";
+        var m = String(p.getValue()).match(/"textEditValue":"((?:[^"\]|\.)*)"/);
+        return m ? eval('"' + m[1].replace(/\r/g, "\n") + '"') : "";
+    }
+
     function isMT(clip) {
         try { return clip.isMGT() && clip.name.indexOf(PREFIX) === 0; } catch (e) { return false; }
     }
@@ -88,7 +99,7 @@ var WPMotion = (function () {
         var s = seq.getSettings();
         return C.out({ ok: true, seq: seq.name, w: seq.frameSizeHorizontal, h: seq.frameSizeVertical,
             fps: 1 / Number(s.videoFrameRate.seconds), playhead: secs(seq.getPlayerPosition().ticks),
-            selected: nSel, total: nAll, project: app.project.name });
+            selected: nSel, total: nAll, project: app.project.name, path: app.project.path });
     }
 
     // clipes da faixa indexados pelo início (ms). Ler track.clips custa proporcional ao tamanho da faixa
@@ -142,7 +153,7 @@ var WPMotion = (function () {
             var it2 = items[n], clip = clips[n];
             if (!clip) { failed.push(n); continue; }
             try {
-                var label = it2.text.replace(/[*_\r\n]/g, " ").replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
+                var label = untag(it2.text).replace(/[*_\r\n]/g, " ").replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
                 clip.name = PREFIX + (label.length > 40 ? label.substr(0, 40) + "\u2026" : label);
                 var props = clip.getMGTComponent().properties;
                 setText(props, it2.text);
@@ -198,7 +209,7 @@ var WPMotion = (function () {
                     if (clip.components[m].displayName === "Motion") clip.components[m].properties.getParamForDisplayName("Scale").setValue(ly.scale, true);
                 }
             }
-            clip.name = PREFIX + ly.text.replace(/[\r\n]+/g, " ");
+            clip.name = PREFIX + untag(ly.text).replace(/[\r\n]+/g, " ");
             placed++;
         }
         return C.out({ ok: true, placed: placed, firstTrack: hi + 1, problems: problems.join("|") });
@@ -226,6 +237,7 @@ var WPMotion = (function () {
             var props = list[k].getMGTComponent().properties, params = cfg.params || {};
             params[DUR] = Math.round((secs(list[k].end.ticks) - secs(list[k].start.ticks)) * 1000) / 1000;
             if (cfg.text) setText(props, cfg.text);
+            else if (cfg.fonts) setText(props, untag(readText(props)) + SEC + cfg.fonts[0] + "|" + cfg.fonts[1]);   // fonte nova também nas que já estão na timeline
             setParams(props, params);
         }
         return C.out({ ok: true, updated: list.length });
@@ -240,11 +252,211 @@ var WPMotion = (function () {
             if (!isMT(sel[i])) continue;
             var raw = String(sel[i].getMGTComponent().properties.getParamForDisplayName("Texto").getValue());
             var m = raw.match(/"textEditValue":"((?:[^"\\]|\\.)*)"/);
-            var txt = m ? eval('"' + m[1].replace(/\\r/g, "\\n") + '"') : "";
+            var txt = untag(m ? eval('"' + m[1].replace(/\\r/g, "\\n") + '"') : "");
             return C.out({ ok: true, text: txt, start: secs(sel[i].start.ticks), end: secs(sel[i].end.ticks) });
         }
         return C.fail("Selecione uma legenda MotionText na timeline.");
     }
 
-    return { info: C.wrap(info), place: C.wrap(place), placeCombo: C.wrap(placeCombo), update: C.wrap(update), readSelected: C.wrap(readSelected) };
+    // ---------- graphics selecionados: hierarquia e tempo vêm da timeline ----------
+    var POSX = "Posição horizontal (%)", POSY = "Posição vertical (%)";
+
+    // C.out só serializa objeto plano; aqui as respostas têm listas de objetos
+    function enc(v) {
+        if (v === null || v === undefined) return "null";
+        if (typeof v === "number") return isFinite(v) ? String(v) : "null";
+        if (typeof v === "boolean") return String(v);
+        if (v instanceof Array) { var a = []; for (var i = 0; i < v.length; i++) a.push(enc(v[i])); return "[" + a.join(",") + "]"; }
+        if (typeof v === "object") { var o = []; for (var k in v) if (v.hasOwnProperty(k)) o.push(enc(String(k)) + ":" + enc(v[k])); return "{" + o.join(",") + "}"; }
+        var s = String(v), r = "";
+        for (var j = 0; j < s.length; j++) {
+            var c = s.charAt(j), n = s.charCodeAt(j);
+            if (c === "\\") r += "\\\\"; else if (c === '"') r += '\\"'; else if (c === "\n") r += "\\n"; else if (c === "\r") r += "\\r";
+            else if (n < 32 || n > 126) r += "\\u" + ("0000" + n.toString(16)).slice(-4); else r += c;
+        }
+        return '"' + r + '"';
+    }
+
+    function decodeText(raw) {
+        var m = raw.match(/"textEditValue":"((?:[^"\\]|\\.)*)"/);
+        return m ? eval('"' + m[1].replace(/\\r/g, "\\n") + '"') : null;
+    }
+
+    // textos de qualquer graphic (nosso, de terceiro ou texto do Premiere): parâmetros com JSON de texto (MEDIDO:
+    // MOGRT de terceiro guarda {"capPropFontEdit"...,"fontEditValue":[...],"fontSizeEditValue":[...],"textEditValue":"..."})
+    function graphicTexts(clip) {
+        var out = [], comps = [], mg = null;
+        try { mg = clip.getMGTComponent(); } catch (e) {}
+        if (mg) comps.push(mg);
+        else for (var i = 0; i < clip.components.numItems; i++) comps.push(clip.components[i]);
+        for (var c = 0; c < comps.length; c++) {
+            var ps = comps[c].properties;
+            for (var p = 0; p < ps.numItems; p++) {
+                var raw = "";
+                try { raw = String(ps[p].getValue()); } catch (e2) { continue; }
+                if (raw.charAt(0) !== "{" || raw.indexOf('"textEditValue"') < 0) continue;
+                var t = decodeText(raw);
+                if (t === null) continue;
+                t = untag(t);
+                var sz = raw.match(/"fontSizeEditValue":\[?([\d.]+)/), ft = raw.match(/"fontEditValue":\["([^"]*)"/);
+                out.push({ text: t, size: sz ? Number(sz[1]) : 0, font: ft ? ft[1] : "" });
+            }
+        }
+        return out;
+    }
+
+    function keyOf(t, clip) { return t + ":" + clip.start.ticks; }
+    function byKey(seq, key) {
+        var t = Number(key.split(":")[0]), ticks = key.split(":")[1];
+        if (t >= seq.videoTracks.numTracks) return null;
+        var cs = seq.videoTracks[t].clips;
+        for (var i = 0; i < cs.numItems; i++) if (String(cs[i].start.ticks) === ticks) return cs[i];
+        return null;
+    }
+    function trackOf(seq, clip) {
+        for (var t = 0; t < seq.videoTracks.numTracks; t++) {
+            var cs = seq.videoTracks[t].clips;
+            for (var i = 0; i < cs.numItems; i++) if (cs[i].start.ticks === clip.start.ticks && cs[i].name === clip.name) return t;
+        }
+        return -1;
+    }
+    function motionPos(clip) {
+        for (var i = 0; i < clip.components.numItems; i++) {
+            if (clip.components[i].displayName !== "Motion") continue;
+            var v = clip.components[i].properties.getParamForDisplayName("Position").getValue();
+            return [Math.round(v[0] * 1000) / 10, Math.round(v[1] * 1000) / 10];
+        }
+        return [50, 50];
+    }
+
+    // [{key, track, start, end, name, mt, text, size, font, x, y}] dos graphics selecionados, por início
+    function readGraphics() {
+        var seq = app.project.activeSequence;
+        if (!seq) return C.fail("Nenhuma sequência ativa.");
+        var sel = seq.getSelection(), list = [];
+        for (var i = 0; i < sel.length; i++) {
+            var clip = sel[i];
+            try { if (!clip.isMGT()) continue; } catch (e) { continue; }
+            if (clip.mediaType && clip.mediaType !== "Video") continue;
+            var tx = graphicTexts(clip), nat = null;
+            // texto da ferramenta Texto do Premiere: o ExtendScript não lê o conteúdo; o painel tira do projeto exportado (exportSeq)
+            if (!tx.length) {
+                for (var nc = 0; nc < clip.components.numItems; nc++) if (clip.components[nc].matchName === "AE.ADBE Text") nat = clip.components[nc];
+                if (!nat) continue;
+                var np = nat.properties.getParamForDisplayName("Position"), nv = np ? np.getValue() : [0.5, 0.5];
+                list.push({ key: keyOf(trackOf(seq, clip), clip), track: trackOf(seq, clip), start: secs(clip.start.ticks), end: secs(clip.end.ticks), name: clip.name,
+                    mt: false, nat: true, ticks: clip.start.ticks + ":" + clip.end.ticks, text: "", size: 0, font: "", x: 50, y: Math.round(nv[1] * 1000) / 10 });
+                continue;
+            }
+            var t = trackOf(seq, clip), mt = isMT(clip), text = [], size = 0;
+            for (var k = 0; k < tx.length; k++) { text.push(tx[k].text); size = Math.max(size, tx[k].size); }
+            var pos = [50, 50];
+            if (mt) {
+                var props = clip.getMGTComponent().properties;
+                pos = [Number(props.getParamForDisplayName(POSX).getValue()), Number(props.getParamForDisplayName(POSY).getValue())];
+                size = 0;   // no nosso template o tamanho vem do papel (padrão/destaque/ligação) no texto
+            } else pos = motionPos(clip);
+            list.push({ key: keyOf(t, clip), track: t, start: secs(clip.start.ticks), end: secs(clip.end.ticks), name: clip.name,
+                mt: mt, text: text.join("\n"), size: size, font: tx[0].font, x: pos[0], y: pos[1] });
+        }
+        if (!list.length) return C.fail("Selecione na timeline os graphics (textos ou templates) que vão ser animados.");
+        list.sort(function (a, b) { return a.start - b.start || a.track - b.track; });
+        return enc({ ok: true, items: list, w: seq.frameSizeHorizontal, h: seq.frameSizeVertical });
+    }
+
+    // sequência ativa como projeto temporário (não muda o projeto aberto; ~60 ms): de lá o painel lê os textos nativos
+    function exportSeq(path) {
+        var seq = app.project.activeSequence;
+        if (!seq) return C.fail("Nenhuma sequência ativa.");
+        if (File(path).exists) File(path).remove();
+        seq.exportAsProject(File(path).fsName);
+        if (!File(path).exists) return C.fail("Não consegui ler os textos dos gráficos (exportação da sequência falhou).");
+        return C.out({ ok: true, path: path });
+    }
+
+    // cfg: {mogrt, params, items:[{key, text, x, y}]}. O nosso template é atualizado no lugar; graphic de terceiro
+    // fica desligado (não é apagado) e o nosso entra na primeira faixa livre acima dele, com o mesmo início e fim.
+    function animateGraphics(cfgJson) {
+        var cfg = parse(cfgJson), seq = app.project.activeSequence;
+        if (!seq) return C.fail("Nenhuma sequência ativa.");
+        if (!File(cfg.mogrt).exists) return C.fail("Template não encontrado: " + cfg.mogrt);
+        var out = [], problems = [];
+        for (var i = 0; i < cfg.items.length; i++) {
+            var it = cfg.items[i], clip = byKey(seq, it.key);
+            if (!clip) { problems.push("não achei " + it.key); continue; }
+            var a = secs(clip.start.ticks), z = secs(clip.end.ticks), target = clip, key = it.key;
+            if (!isMT(clip)) {
+                var t0 = Number(it.key.split(":")[0]), tr = -1;
+                for (var t = t0 + 1; t < seq.videoTracks.numTracks; t++) if (freeIn(seq.videoTracks[t], [{ start: a, end: z }])) { tr = t; break; }
+                if (tr < 0) { app.enableQE(); qe.project.getActiveSequence().addTracks(1, seq.videoTracks.numTracks, 0); tr = seq.videoTracks.numTracks - 1; }
+                target = seq.importMGT(cfg.mogrt, clip.start.ticks, tr, 0);
+                if (!target) { problems.push("importMGT falhou em " + it.key); continue; }
+                target.end = clip.end;
+                clip.disabled = true;
+                key = keyOf(tr, target);
+            }
+            var props = target.getMGTComponent().properties, p = {}, base = cfg.params || {};
+            for (var b in base) if (base.hasOwnProperty(b)) p[b] = base[b];
+            var own = it.params || {};   // combinação: estilo próprio de cada graphic
+            for (var ob in own) if (own.hasOwnProperty(ob)) p[ob] = own[ob];
+            p[DUR] = Math.round((z - a) * 1000) / 1000;
+            p[POSX] = Math.max(0, Math.min(100, it.x)); p[POSY] = Math.max(0, Math.min(100, it.y));
+            setText(props, it.text);
+            var miss = setParams(props, p);
+            if (miss.length) problems.push(miss.join("/"));
+            if (it.scale) {   // tamanho acima do que o slider aceita (200 px): o resto vai na escala do clipe
+                for (var mc = 0; mc < target.components.numItems; mc++) if (target.components[mc].displayName === "Motion") target.components[mc].properties.getParamForDisplayName("Scale").setValue(it.scale, true);
+            }
+            var label = untag(it.text).replace(/[*_\r\n]/g, " ").replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
+            target.name = PREFIX + (label.length > 40 ? label.substr(0, 40) + String.fromCharCode(8230) : label);
+            out.push({ old: it.key, key: key });
+        }
+        refreshMonitor(seq);
+        return enc({ ok: true, items: out, problems: problems.join("|") });
+    }
+
+    // o Monitor de Programa só redesenha quando o cursor anda: mexer 1 tick e voltar força o quadro novo
+    function refreshMonitor(seq) {
+        try { var p = String(seq.getPlayerPosition().ticks); seq.setPlayerPosition(String(Number(p) + 1)); seq.setPlayerPosition(p); } catch (e) {}
+    }
+
+    // cfg: {items:[{key, x, y}]}: só posição (arrastar na prévia do painel)
+    function setPos(cfgJson) {
+        var cfg = parse(cfgJson), seq = app.project.activeSequence, n = 0;
+        if (!seq) return C.fail("Nenhuma sequência ativa.");
+        for (var i = 0; i < cfg.items.length; i++) {
+            var clip = byKey(seq, cfg.items[i].key);
+            if (!clip || !isMT(clip)) continue;
+            var props = clip.getMGTComponent().properties;
+            props.getParamForDisplayName(POSX).setValue(Math.max(0, Math.min(100, cfg.items[i].x)), true);
+            props.getParamForDisplayName(POSY).setValue(Math.max(0, Math.min(100, cfg.items[i].y)), true);
+            n++;
+        }
+        if (n) refreshMonitor(seq);
+        return C.out({ ok: true, moved: n });
+    }
+
+    // cfg: {t, path (sem extensão), hide:[keys]}: quadro da sequência para o fundo da prévia, sem os textos
+    // escolhidos (senão eles aparecem duas vezes: no quadro e no bloco arrastável)
+    function frame(cfgJson) {
+        var cfg = parse(cfgJson), seq = app.project.activeSequence;
+        if (!seq) return C.fail("Nenhuma sequência ativa.");
+        var hidden = [], h = cfg.hide || [];
+        for (var i = 0; i < h.length; i++) { var c = byKey(seq, h[i]); if (c && !c.disabled) { c.disabled = true; hidden.push(c); } }
+        var file = File(cfg.path + ".png");
+        if (file.exists) file.remove();
+        try {
+            app.enableQE();
+            var s = seq.getSettings(), tt = new Time(); tt.seconds = cfg.t;
+            qe.project.getActiveSequence().exportFramePNG(tt.getFormatted(s.videoFrameRate, s.videoDisplayFormat), File(cfg.path).fsName);
+            for (var w = 0; w < 100 && !file.exists; w++) $.sleep(100);
+        } finally {
+            for (var k = 0; k < hidden.length; k++) hidden[k].disabled = false;
+        }
+        if (!file.exists) return C.fail("O Premiere não exportou o quadro.");
+        return C.out({ ok: true, file: file.fsName });
+    }
+
+    return { info: C.wrap(info), place: C.wrap(place), placeCombo: C.wrap(placeCombo), update: C.wrap(update), readSelected: C.wrap(readSelected),
+        readGraphics: C.wrap(readGraphics), animateGraphics: C.wrap(animateGraphics), setPos: C.wrap(setPos), frame: C.wrap(frame), exportSeq: C.wrap(exportSeq) };
 })();

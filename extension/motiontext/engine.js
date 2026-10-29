@@ -193,8 +193,14 @@
 
     // ---------- templates (cache por par de fontes e tamanho do quadro) ----------
     function hash(s) { var h = 5381; for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(36); }
-    var TEMPLATE_VERSION = "2";   // 2: estilos e animações recriados (degradê, brilho, caixa, sublinhado, permanência...)
-    function templateName(fontA, fontB, w, h) { return "MT_" + hash([TEMPLATE_VERSION, fontA, fontB, w, h].join("|")); }
+    // 2: estilos e animações recriados (degradê, brilho, caixa, sublinhado, permanência...)
+    // 3: um template por tamanho de quadro: as fontes viajam no fim do texto (fontTag), não no template
+    // 4: degradê/luz no espaço da composição, contorno por trás da letra, sombra e bordas mais fortes
+    var TEMPLATE_VERSION = "4";
+    function templateName(fontA, fontB, w, h) { return "MT_" + hash([TEMPLATE_VERSION, w, h].join("|")); }
+    // "texto" + "§FontePadrão|FonteDestaque" (nomes PostScript): a expressão do template lê e tira esse fim
+    function fontTag(text, fontA, fontB) { return untag(text) + "§" + (fontA || "") + "|" + (fontB || fontA || ""); }
+    function untag(text) { return String(text).replace(/§[^§]*$/, ""); }
     function templatePath(name) { return path.join(DATA, "templates", name + ".mogrt"); }
 
     function findAE() {
@@ -246,7 +252,8 @@
             fs.writeFileSync(job, "var MT_JOB = " + JSON.stringify(cfg) + ";\n$.evalFile(File(" +
                 JSON.stringify(fwd(path.join(extRoot, "motiontext", "ae", "build_template.jsx"))) + "));\n", "utf8");
             cp.spawn(exe, ["-r", job], { detached: true, stdio: "ignore" }).unref();
-            var limit = 120 + 30 * jobs.length, t0 = Date.now(), timer = setInterval(function () {
+            // a exportação do MOGRT variou de 80 a 127 s (MEDIDO 29/10/2026): prazo folgado para não acusar falha à toa
+            var limit = 240 + 60 * jobs.length, t0 = Date.now(), timer = setInterval(function () {
                 var el = (Date.now() - t0) / 1000;
                 if (onTick) onTick(el, readLog(result + ".log"));
                 if (fs.existsSync(result)) {
@@ -266,6 +273,95 @@
     function buildTemplate(o, extRoot, onTick) {
         return buildTemplates([o], o.width, o.height, extRoot, onTick).then(function (p) { return p[0]; });
     }
+    // ---------- texto dos gráficos nativos do Premiere ----------
+    // O ExtendScript não lê o texto de um gráfico feito com a ferramenta Texto (o "Source Text" volta como 1 caractere:
+    // MEDIDO 29/10/2026). A sequência exportada como projeto (.prproj = XML gzip) guarda esse texto num bloco base64
+    // (flatbuffer): Source Text -> VideoFilterComponent -> VideoComponentChain -> VideoClipTrackItem (início/fim em ticks).
+    // Devolve { "início:fim": {text, font} }. Strings do flatbuffer: uint32 tamanho + bytes UTF-8 + 0.
+    function blobStrings(buf) {
+        var out = [], i = 0;
+        while (i + 4 < buf.length) {
+            var n = buf.readUInt32LE(i);
+            if (n > 0 && n < 4000 && i + 4 + n < buf.length && buf[i + 4 + n] === 0) {
+                var s = buf.toString("utf8", i + 4, i + 4 + n);
+                if (!/[\u0000-\u0008\u000b\u000c\u000e-\u001f�]/.test(s)) { out.push(s); i += 4 + n + 1; continue; }
+            }
+            i++;
+        }
+        return out;
+    }
+    function nativeTexts(prprojFile) {
+        var zlib = require("zlib"), raw = fs.readFileSync(prprojFile), x;
+        try { raw = zlib.gunzipSync(raw); } catch (e) {}
+        x = raw.toString("utf8");
+        function blocks(tag) {
+            var re = new RegExp("<" + tag + " ObjectID=\"(\\d+)\"[\\s\\S]*?</" + tag + ">", "g"), m, list = [];
+            while ((m = re.exec(x))) list.push({ id: m[1], body: m[0] });
+            return list;
+        }
+        // elemento inteiro: com o parâmetro expandido na interface vem um <Node> antes do <Name> (MEDIDO 29/10/2026)
+        var params = {};
+        blocks("ArbVideoComponentParam").forEach(function (p) {
+            if (p.body.indexOf("<Name>Source Text</Name>") < 0) return;
+            var v = p.body.match(/<StartKeyframeValue[^>]*>([^<]*)<\/StartKeyframeValue>/);
+            if (!v) return;
+            var strs = blobStrings(Buffer.from(v[1].replace(/\s+/g, ""), "base64")).filter(function (s) { return s !== "AnimationType"; });
+            if (strs.length) params[p.id] = { text: strs[strs.length - 1].replace(/\r\n?/g, "\n"), font: strs.length > 1 ? strs[strs.length - 2] : "" };
+        });
+        var compOf = {}, chainOf = {}, out = {};
+        blocks("VideoFilterComponent").forEach(function (c) {
+            (c.body.match(/<Param Index="\d+" ObjectRef="(\d+)"\/>/g) || []).forEach(function (p) { var id = p.match(/ObjectRef="(\d+)"/)[1]; if (params[id]) compOf[c.id] = params[id]; });
+        });
+        blocks("VideoComponentChain").forEach(function (c) {
+            (c.body.match(/<Component Index="\d+" ObjectRef="(\d+)"\/>/g) || []).forEach(function (p) { var id = p.match(/ObjectRef="(\d+)"/)[1]; if (compOf[id]) chainOf[c.id] = compOf[id]; });
+        });
+        blocks("VideoClipTrackItem").forEach(function (t) {
+            var ch = t.body.match(/<Components ObjectRef="(\d+)"\/>/);
+            if (!ch || !chainOf[ch[1]]) return;
+            var st = t.body.match(/<TrackItem Version="\d+">[\s\S]*?<\/TrackItem>/), seg = st ? st[0] : t.body;
+            var a = (seg.match(/<Start>(-?\d+)<\/Start>/) || [0, "0"])[1], z = (seg.match(/<End>(-?\d+)<\/End>/) || [0, "0"])[1];
+            out[a + ":" + z] = chainOf[ch[1]];
+        });
+        return out;
+    }
+
+    // Fontes usadas num projeto (.prproj salvo e/ou sequência exportada): nomes PostScript que aparecem no XML
+    // (MOGRT guarda "fontEditValue", o MotionText guarda "§Fonte|Fonte") ou nos blocos de texto nativo, e que estão
+    // instaladas (known: {ps: true}). Fonte de texto nativo que não está instalada vai em missing.
+    // Devolve {used: [ps, ...] (mais usadas primeiro), missing: [nome, ...]}.
+    function projectFonts(files, known) {
+        var count = {}, missing = {}, zlib = require("zlib");
+        function hit(s) { if (known[s]) { count[s] = (count[s] || 0) + 1; return true; } return false; }
+        files.forEach(function (f) {
+            var raw;
+            try { raw = fs.readFileSync(f); } catch (e) { return; }
+            try { raw = zlib.gunzipSync(raw); } catch (e) {}
+            var x = raw.toString("utf8"), m;
+            // só onde fica fonte: "fontEditValue" dos MOGRT e o fim "§Fonte|Fonte" do MotionText (o nome solto pegava
+            // falsos, como "Impact" do plugin Film Impact: MEDIDO no Prudem.prproj)
+            var fe = /fontEditValue(?:&quot;|")\s*:\s*\[\s*(?:&quot;|")([^&"]+)/g;
+            while ((m = fe.exec(x))) hit(m[1]);
+            var sec = /\u00a7([^|<&\u00a7"]+)\|([^<&\u00a7"\s]+)/g;
+            while ((m = sec.exec(x))) { hit(m[1]); hit(m[2]); }
+            var re = /<StartKeyframeValue Encoding="base64"[^>]*>([^<]*)</g;
+            while ((m = re.exec(x))) {
+                var blob = Buffer.from(m[1].replace(/\s+/g, ""), "base64");
+                var strs = blobStrings(blob).filter(function (s) { return s !== "AnimationType"; });
+                strs.forEach(hit);
+                // MOGRT: o JSON do texto fica no bloco; a fonte do MotionText vem no fim como "§" ou "\u00a7" (escape do host)
+                var js = blob.toString("utf8") + " " + blob.toString("utf16le"), m2;   // o JSON dos MOGRT vem em UTF-16 (MEDIDO)
+                var fe2 = /fontEditValue"\s*:\s*\[\s*"([^"]+)"/g;
+                while ((m2 = fe2.exec(js))) hit(m2[1]);
+                var sec2 = /(?:\u00a7|\\u00a7)([A-Za-z0-9-]+)\|([A-Za-z0-9-]+)/g;
+                while ((m2 = sec2.exec(js))) { hit(m2[1]); hit(m2[2]); }
+                // texto nativo: [..., fonte, texto]
+                if (strs.length > 1) { var fn = strs[strs.length - 2]; if (!known[fn] && /^[A-Za-z][\w-]{2,63}$/.test(fn) && !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(fn)) missing[fn] = true; }
+            }
+        });
+        var used = Object.keys(count).sort(function (a, b) { return count[b] - count[a]; });
+        return { used: used, missing: Object.keys(missing) };
+    }
+
     // ---------- presets e estado ----------
     function readJSON(name, def) {
         try { return JSON.parse(fs.readFileSync(path.join(DATA, name), "utf8").replace(/^\uFEFF/, "")); } catch (e) { return def; }
@@ -278,7 +374,7 @@
     var api = {
         DATA: DATA, parseMarkup: parseMarkup, toMarkup: toMarkup, plain: plain, autoHierarchy: autoHierarchy,
         layout: layout, measure: measure, parseSRT: parseSRT, snap: snap, amount: amount, unitStyle: unitStyle,
-        templateName: templateName, templatePath: templatePath, buildTemplate: buildTemplate, buildTemplates: buildTemplates, findAE: findAE,
+        templateName: templateName, templatePath: templatePath, fontTag: fontTag, untag: untag, nativeTexts: nativeTexts, projectFonts: projectFonts, buildTemplate: buildTemplate, buildTemplates: buildTemplates, findAE: findAE,
         readJSON: readJSON, writeJSON: writeJSON, exists: function (p) { return fs.existsSync(p); }
     };
     if (typeof module !== "undefined" && module.exports) module.exports = api;

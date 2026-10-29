@@ -10,7 +10,7 @@ $.evalFile(File($.fileName).parent.parent.fsName + "/shared/host-common.jsx");
 
 var WPSoundFX = (function () {
     var C = WPCommon, secs = C.secs;
-    var BIN = "SFX (Willian Plugins)";
+    var BIN = "SFX (Sharp Frame)", BIN_OLD = "SFX (Willian Plugins)";
     var PREFIX = "WP SFX ";
     var EPS = 0.002;
 
@@ -34,7 +34,7 @@ var WPSoundFX = (function () {
         var root = app.project.rootItem;
         for (var i = 0; i < root.children.numItems; i++) {
             var it = root.children[i];
-            if (it.type === ProjectItemType.BIN && it.name === BIN) return it;
+            if (it.type === ProjectItemType.BIN && (it.name === BIN || it.name === BIN_OLD)) { it.name = BIN; return it; }
         }
         return root.createBin(BIN);
     }

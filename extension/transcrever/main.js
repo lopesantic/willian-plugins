@@ -186,7 +186,7 @@
     busy(true);
     setProgress(0);
     setStatus("Exportando o áudio da faixa…");
-    var wav = path.join(os.tmpdir(), "willian-transcrever-faixa.wav").replace(/\\/g, "/");
+    var wav = path.join(os.tmpdir(), "willian-transcrever-faixa.wav").replace(/\\/g, "/"), t0 = Date.now();
     loadTracks()
       .then(function () { return WP.call("WPTranscrever.exportAudio", [$("track").value, wav]); })
       .then(function () {
@@ -203,7 +203,8 @@
         state.lang = $("toEnglish").checked ? "en" : r.language;
         persist();
         showResult();
-        setStatus(r.segments.length + " trechos transcritos.", "ok");
+        setStatus(r.segments.length + " trechos transcritos em " + Math.round((Date.now() - t0) / 1000) + " s" +
+          (r.device === "cpu" ? " (no processador: a placa de vídeo não foi usada)." : " (placa de vídeo)."), "ok");
       })
       .catch(function (e) { setStatus(e.message, "error"); })
       .then(function () { setProgress(null); busy(false); });

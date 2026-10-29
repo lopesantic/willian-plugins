@@ -1,6 +1,19 @@
 // Ponte painel -> ExtendScript, comum a todos os painéis.
 // Cada painel carrega o próprio host.jsx com $.evalFile e chama as funções globais dele.
+// Dentro da interface única (hub), cada painel roda num iframe: herda da janela principal a ponte com o
+// Premiere (__adobe_cep__) e o Node (require, process, Buffer), que o CEP só injeta no documento principal.
 (function () {
+  if (!window.__adobe_cep__ && window.parent && window.parent !== window) {
+    try {
+      var P = window.parent;
+      window.__adobe_cep__ = P.__adobe_cep__;
+      if (!window.require && P.require) window.require = P.require;
+      if (!window.process && P.process) window.process = P.process;
+      if (!window.Buffer && P.Buffer) window.Buffer = P.Buffer;
+      if (!window.cep && P.cep) window.cep = P.cep;
+      document.documentElement.classList.add("wp-embedded");
+    } catch (e) { /* fora do hub: segue como painel avulso */ }
+  }
   var cep = window.__adobe_cep__;
 
   // Sliders: a parte preenchida do trilho (CSS --fill) acompanha o valor, inclusive quando o código muda o valor.

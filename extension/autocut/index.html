@@ -7,7 +7,7 @@
 </head>
 <body>
   <header class="wp-header">
-    <div class="wp-mark">W</div>
+    <div class="wp-mark">S</div>
     <div><div class="wp-title">AutoCut</div><div class="wp-sub">Corte de silêncio</div></div>
   </header>
 
@@ -21,7 +21,14 @@
   <div id="results" class="hidden">
     <section class="card">
       <h2>Silêncios</h2>
-      <canvas id="wave" height="90"></canvas>
+      <canvas id="wave" height="110"></canvas>
+      <div class="ac-overview" id="overview"><i id="viewport"></i></div>
+      <div class="row ac-zoom">
+        <button class="ghost chip" id="zoomOut" title="Afastar">−</button>
+        <button class="ghost chip" id="zoomIn" title="Aproximar">+</button>
+        <button class="ghost chip" id="zoomFit" title="Ver tudo">Ajustar</button>
+        <span class="note ac-hint">roda do mouse = zoom · arrastar = mover · duplo clique = ver tudo</span>
+      </div>
       <div class="summary" id="summary"></div>
       <div class="row presets">
         <button data-preset="natural" class="ghost">Natural</button>

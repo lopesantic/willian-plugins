@@ -7,7 +7,7 @@
 </head>
 <body>
   <header class="wp-header">
-    <div class="wp-mark">W</div>
+    <div class="wp-mark">S</div>
     <div><div class="wp-title">MotionText</div><div class="wp-sub">Legendas e letterings animados, editáveis no Premiere</div></div>
   </header>
 
@@ -17,19 +17,20 @@
     <div class="mt-fontgrid">
       <div class="mt-font" data-lv="0">
         <div class="mt-fonthead"><span class="dot pad"></span>Legenda padrão</div>
-        <input type="search" class="fontpick" list="fontList" placeholder="Fonte…">
+        <input type="search" class="fontpick" placeholder="Clique e busque a fonte…" autocomplete="off" spellcheck="false">
         <div class="field"><label>Tamanho <output></output></label><input type="range" data-k="size" min="20" max="200" step="1"></div>
         <div class="field"><label>Letras <output></output></label><input type="range" data-k="tracking" min="-200" max="200" step="5"></div>
         <button class="ghost chip reset">Restaurar</button>
       </div>
       <div class="mt-font" data-lv="1">
         <div class="mt-fonthead"><span class="dot hi"></span>Legenda de destaque</div>
-        <input type="search" class="fontpick" list="fontList" placeholder="Fonte…">
+        <input type="search" class="fontpick" placeholder="Clique e busque a fonte…" autocomplete="off" spellcheck="false">
         <div class="field"><label>Tamanho <output></output></label><input type="range" data-k="size" min="20" max="200" step="1"></div>
         <div class="field"><label>Letras <output></output></label><input type="range" data-k="tracking" min="-200" max="200" step="5"></div>
         <button class="ghost chip reset">Restaurar</button>
       </div>
     </div>
+    <div class="note mt-projfonts" id="projFonts">Fontes do projeto: lendo…</div>
     <div class="row mt-row3">
       <div class="field"><label>Ligação <output id="linkOut"></output></label><input type="range" id="linkSize" min="20" max="200" step="1"></div>
       <div class="field"><label>Entre palavras <output id="wsOut"></output></label><input type="range" id="wordSpace" min="-200" max="200" step="10"></div>
@@ -43,6 +44,8 @@
     <label class="check"><input type="checkbox" id="applyExisting"> Mudanças de tamanho e cor também nas legendas já na timeline</label>
   </details>
   <datalist id="fontList"></datalist>
+  <!-- seletor de fontes: fontes do projeto do cliente no topo, depois todas as instaladas -->
+  <div class="mt-fontpop hidden" id="fontPop"><div id="fontPopList"></div></div>
 
   <!-- texto e editor por palavra -->
   <section class="card">
@@ -66,11 +69,32 @@
 
   <!-- abas -->
   <div class="row seg mt-tabs">
+    <button data-tab="sel" class="ghost">Seleção</button>
     <button data-tab="anim" class="ghost active">Animações</button>
     <button data-tab="combo" class="ghost">Combinações</button>
     <button data-tab="srt" class="ghost">SRT</button>
     <button data-tab="presets" class="ghost">Presets</button>
   </div>
+
+  <!-- graphics selecionados na timeline: tempo pela posição de cada um, hierarquia pelo tamanho/ordem -->
+  <section class="card tab hidden" id="tab-sel">
+    <p class="note">Empilhe os graphics na timeline (um por palavra ou trecho), selecione e leia. Cada um entra no tempo em que está; a animação e o estilo são os das abas Animações e Fontes.</p>
+    <div class="row">
+      <button class="ghost chip" id="selRead">Ler seleção da timeline</button>
+      <button class="ghost chip" id="selFrame">Atualizar quadro</button>
+    </div>
+    <div class="mt-sel-stage" id="selStage"><img id="selBg" alt=""><div class="mt-sel-center"></div></div>
+    <div class="note" id="selHint">Arraste os textos no quadro para posicionar. Clique no papel para trocar.</div>
+    <div class="mt-sel-list" id="selList"></div>
+    <label class="check"><input type="checkbox" id="selLive" checked> Mover no vídeo enquanto arrasto</label>
+    <button class="primary" id="selApply">Animar seleção</button>
+    <h2 class="mt-sub">Combinação pronta na seleção</h2>
+    <p class="note">Cada graphic mantém o texto e o tempo; o principal recebe a camada forte da combinação e os outros, as de apoio, empilhados e centralizados.</p>
+    <div class="row mt-combo-row">
+      <select id="selCombo"></select>
+      <button class="ghost" id="selComboApply">Aplicar combinação</button>
+    </div>
+  </section>
 
   <section class="card tab" id="tab-anim">
     <div class="mt-cats" id="cats"></div>
@@ -183,7 +207,7 @@
   <button id="update" class="ghost">Atualizar legendas selecionadas</button>
 
   <div class="status" id="status">Escolha as fontes, escreva o texto e a animação.</div>
-  <p class="note">As fontes ficam fixas no template gerado pelo After Effects (1ª vez com um par de fontes: cerca de 1 min; depois é instantâneo). Texto, tamanhos, cores e animação continuam editáveis em Gráficos Essenciais. Confira se o texto não cobre rostos.</p>
+  <p class="note">O template é gerado no After Effects uma vez só por tamanho de quadro (cerca de 1,5 min); depois qualquer fonte instalada é instantânea, porque a fonte vai junto com o texto. Texto, tamanhos, cores e animação continuam editáveis em Gráficos Essenciais (não apague o final com § e o nome das fontes). Confira se o texto não cobre rostos.</p>
 
   <script src="../shared/host-bridge.js"></script>
   <script src="anims.js"></script>

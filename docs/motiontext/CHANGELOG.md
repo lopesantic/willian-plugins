@@ -1,5 +1,20 @@
 # MotionText — changelog
 
+## 0.4.0 (Sharp Frame 1.8.0) — 29/10/2026
+- Pacote renomeado para **Sharp Frame** e um painel só (hub com abas por categoria); os painéis separados saíram do menu.
+- Template único por tamanho de quadro (v4): a fonte vai no fim do texto (`§FontePadrão|FonteDestaque`), então trocar de
+  fonte não abre mais o After Effects (antes: 70–90 s por par de fontes).
+- Seletor de fontes próprio: busca por parte do nome, Enter escolhe, fontes do projeto do cliente no topo (lidas do .prproj
+  salvo e da sequência aberta) e aviso das que o projeto usa mas não estão instaladas.
+- Aba Seleção: anima os graphics selecionados no tempo da timeline, inclusive texto nativo do Premiere (lido do projeto
+  exportado, o ExtendScript não lê esse texto) e MOGRT de terceiros (ficam desligados, o MotionText entra acima).
+- Combinações: layout automático (camadas juntas na tela empilhadas e centralizadas, principal maior) e "Aplicar combinação"
+  nos graphics selecionados.
+- Estilos corrigidos no template: degradê e luz no espaço da composição, contorno por trás da letra, sombra e bordas
+  orgânicas mais fortes, sublinhado colado no texto, luz repetindo a cada 2,2 s.
+- Arrastar na prévia redesenha o Monitor de Programa; miniaturas das animações legíveis; aviso fixo no rodapé;
+  Hierarquia automática, Quebrar linhas e Ler da timeline dizem o que fizeram.
+
 ## 0.3.0 (Willian Plugins 1.7.0) — 29/10/2026
 - Recriação (sem cópia) dos letterings de referência: template v2 com degradê, brilho, relevo, bordas orgânicas,
   luz passando, caixa/pílula, sublinhado e permanência (onda, flutuar, tremer, pulso); 13 animações novas; 9 looks.

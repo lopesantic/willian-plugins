@@ -45,28 +45,60 @@ var WPAutoCut = (function () {
         for (var i = 0; i < list.length; i++) qeTrack(qeSeq, list[i]).razor(tc);
     }
 
-    // Remove os pedaços que ficaram dentro de [start, end] depois do razor.
-    function liftRange(list, start, end) {
+    // Remove os pedaços que ficaram dentro de [start, end] depois do razor (tolerância de meio quadro,
+    // para não sobrar lasca de 1 quadro quando o razor cai um tique antes/depois).
+    function liftRange(list, start, end, tol) {
         var removed = 0;
         for (var i = 0; i < list.length; i++) {
             var clips = list[i].dom.clips;
             for (var c = clips.numItems - 1; c >= 0; c--) {
                 var cs = secs(clips[c].start.ticks), ce = secs(clips[c].end.ticks);
-                if (cs >= start - EPS && ce <= end + EPS) { clips[c].remove(false, false); removed++; }
+                if (cs >= start - tol && ce <= end + tol) { clips[c].remove(false, false); removed++; }
             }
         }
         return removed;
     }
 
-    // Puxa para a esquerda tudo que começa depois de "from", em todas as faixas, por "dur" segundos.
-    function shiftLeft(list, from, dur) {
-        var offset = timeAt(-dur);
-        for (var i = 0; i < list.length; i++) {
+    // Fecha os espaços de uma vez, depois de todos os cortes: cada clipe vai para "início - silêncio removido
+    // antes dele", da esquerda para a direita (o espaço à esquerda já está livre). Move pela diferença entre a
+    // posição atual e a final: se o par vinculado (vídeo/áudio) já andou junto, não anda de novo.
+    function closeGaps(list, removed) {
+        var items = [], i, c;
+        for (i = 0; i < list.length; i++) {
             var clips = list[i].dom.clips;
-            for (var c = 0; c < clips.numItems; c++) {
-                if (secs(clips[c].start.ticks) >= from - EPS) clips[c].move(offset);
+            for (c = 0; c < clips.numItems; c++) items.push({ clip: clips[c], start: secs(clips[c].start.ticks) });
+        }
+        items.sort(function (a, b) { return a.start - b.start; });
+        var moved = 0;
+        for (i = 0; i < items.length; i++) {
+            var off = 0;
+            for (var r = 0; r < removed.length; r++) if (removed[r].e <= items[i].start + EPS) off += removed[r].e - removed[r].s;
+            if (off < EPS) continue;
+            var d = (items[i].start - off) - secs(items[i].clip.start.ticks);
+            if (Math.abs(d) > EPS) { items[i].clip.move(timeAt(d)); moved++; }
+        }
+        return moved;
+    }
+
+    // Emendas que ficaram com espaço: em cada ponto onde um silêncio saiu, a faixa tem clipe antes e depois
+    // mas nada encostado na emenda.
+    function leftoverGaps(list, joints, tol) {
+        var gaps = 0;
+        for (var i = 0; i < list.length; i++) {
+            var clips = list[i].dom.clips, spans = [];
+            for (var c = 0; c < clips.numItems; c++) spans.push([secs(clips[c].start.ticks), secs(clips[c].end.ticks)]);
+            for (var j = 0; j < joints.length; j++) {
+                var t = joints[j], before = false, after = false, covered = false;
+                for (var k = 0; k < spans.length; k++) {
+                    if (spans[k][1] <= t + tol && spans[k][1] > t - 5) before = true;
+                    if (spans[k][0] >= t - tol && spans[k][0] < t + 5) after = true;
+                    if (spans[k][0] <= t - tol && spans[k][1] >= t + tol) covered = true;
+                    if (Math.abs(spans[k][1] - t) <= tol) { for (var m = 0; m < spans.length; m++) if (Math.abs(spans[m][0] - t) <= tol) covered = true; }
+                }
+                if (before && after && !covered) gaps++;
             }
         }
+        return gaps;
     }
 
     // O razor do QE desfaz o vínculo entre vídeo e áudio. Vincula de novo cada pedaço de vídeo
@@ -113,22 +145,32 @@ var WPAutoCut = (function () {
         var qeSeq = qe.project.getActiveSequence();
         var list = unlockedTracks(seq);
 
-        // do último para o primeiro: o ripple de um trecho não desloca os trechos anteriores
-        var cuts = 0, removedSecs = 0, pieces = 0;
-        for (var r = regions.length - 1; r >= 0; r--) {
+        // trechos alinhados ao quadro, em ordem, sem sobreposição
+        var fd = frameDur(seq), tol = fd / 2, segs = [], r;
+        for (r = 0; r < regions.length; r++) {
             var s = snap(seq, regions[r].start), e = snap(seq, regions[r].end);
-            if (e - s < frameDur(seq) - EPS) continue;
-            razorAt(seq, qeSeq, list, e);
-            razorAt(seq, qeSeq, list, s);
-            cuts++;
-            if (mode === "razor") continue;
-            pieces += liftRange(list, s, e);
-            if (mode === "ripple") shiftLeft(list, e, e - s);
-            removedSecs += e - s;
+            if (e - s >= fd - EPS) segs.push({ s: s, e: e });
+        }
+        segs.sort(function (a, b) { return a.s - b.s; });
+        for (r = segs.length - 1; r > 0; r--) if (segs[r].s <= segs[r - 1].e + EPS) { segs[r - 1].e = Math.max(segs[r - 1].e, segs[r].e); segs.splice(r, 1); }
+
+        // 1) todos os cortes, 2) tira todos os silêncios, 3) só então fecha os espaços (pedido do Willian, 29/10/2026)
+        for (r = 0; r < segs.length; r++) { razorAt(seq, qeSeq, list, segs[r].s); razorAt(seq, qeSeq, list, segs[r].e); }
+        var pieces = 0, removedSecs = 0, moved = 0, gaps = 0;
+        if (mode !== "razor") {
+            for (r = 0; r < segs.length; r++) { pieces += liftRange(list, segs[r].s, segs[r].e, tol); removedSecs += segs[r].e - segs[r].s; }
+        }
+        if (mode === "ripple") {
+            moved = closeGaps(list, segs);
+            // posição de cada emenda depois de fechar
+            var joints = [], acc = 0;
+            for (r = 0; r < segs.length; r++) { joints.push(segs[r].s - acc); acc += segs[r].e - segs[r].s; }
+            gaps = leftoverGaps(list, joints, tol);
         }
         var linked = relink(seq, list);
         return C.out({
-            ok: true, sequence: seq.name, mode: mode, cuts: cuts, pieces: pieces, linked: linked,
+            ok: true, sequence: seq.name, mode: mode, cuts: segs.length, pieces: pieces, linked: linked, moved: moved,
+            gaps: gaps,
             removed: Math.round(removedSecs * 100) / 100,
             before: Math.round(before * 100) / 100,
             after: Math.round(secs(seq.end) * 100) / 100,
