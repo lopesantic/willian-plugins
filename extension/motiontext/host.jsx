@@ -160,10 +160,10 @@ var WPMotion = (function () {
             missing: missing.join("|") });
     }
 
-    // Combinação pronta (Will Letterings): várias camadas, cada uma num MOGRT, empilhadas acima de tudo o que
-    // existe no intervalo (texto nunca fica escondido embaixo de B-roll). Cada camada recebe exatamente os
-    // valores capturados da combinação original (por índice do parâmetro, conferindo o nome) e o texto novo.
-    // cfg: {start, folder, layers:[{file, delay, dur, layer, pos, scale, text, params:[{i,n,k,v}]}]}
+    // Combinação pronta (Will Letterings): várias camadas empilhadas acima de tudo o que
+    // existe no intervalo (texto nunca fica escondido embaixo de B-roll). Cada camada é uma legenda do NOSSO template
+    // (fonte da camada) com os valores recriados da combinação de referência e o texto novo.
+    // cfg: {start, layers:[{mogrt, delay, dur, layer, text, mt:{nome no Premiere: valor}, scale}]}
     function placeCombo(cfgJson) {
         var cfg = parse(cfgJson), seq = app.project.activeSequence;
         if (!seq) return C.fail("Nenhuma sequência ativa.");
@@ -181,34 +181,21 @@ var WPMotion = (function () {
         var placed = 0, problems = [];
         for (var k = 0; k < L.length; k++) {
             var ly = L[k], tr = hi + 1 + ly.layer, s0 = cfg.start + ly.delay;
-            var clip = seq.importMGT(cfg.folder + "/" + ly.file, C.timeAt(s0).ticks, tr, 0);
-            if (!clip) { problems.push(ly.file); continue; }
+            var clip = seq.importMGT(ly.mogrt, C.timeAt(s0).ticks, tr, 0);
+            if (!clip) { problems.push(ly.mogrt); continue; }
             clip.end = C.timeAt(s0 + ly.dur);
-            var props = clip.getMGTComponent().properties, ps = ly.params || [];
-            for (var p = 0; p < ps.length; p++) {
-                var pr = props[ps[p].i];
-                if (!pr || pr.displayName !== ps[p].n) pr = props.getParamForDisplayName(ps[p].n);
-                if (!pr) continue;
-                try {
-                    if (ps[p].k === "c") { var cv = ps[p].v; pr.setColorValue(cv[0] <= 1 ? 255 : cv[0], cv[1], cv[2], cv[3], true); }
-                    else if (typeof ps[p].v === "string" && ps[p].v.indexOf("textEditValue") >= 0) {
-                        pr.setValue(ps[p].v.replace(/"textEditValue":"(?:[^"\\]|\\.)*"/, '"textEditValue":"' + jsonText(ly.text) + '"'), true);
-                    } else pr.setValue(ps[p].v, true);
-                } catch (e) { problems.push(ps[p].n); }
-            }
-            if (!ps.length) {
-                // sem parâmetros capturados (animação avulsa do pack): só o texto
-                for (var q2 = 0; q2 < props.numItems; q2++) {
-                    var raw = ""; try { raw = String(props[q2].getValue()); } catch (e3) {}
-                    if (raw.indexOf("textEditValue") >= 0) { props[q2].setValue(raw.replace(/"textEditValue":"(?:[^"\\]|\\.)*"/, '"textEditValue":"' + jsonText(ly.text) + '"'), true); break; }
-                }
-            }
-            if (ly.pos) {
-                var mo = null;
-                for (var m = 0; m < clip.components.numItems; m++) if (clip.components[m].displayName === "Motion") mo = clip.components[m];
-                if (mo) {
-                    mo.properties.getParamForDisplayName("Position").setValue(ly.pos, true);
-                    mo.properties.getParamForDisplayName("Scale").setValue(ly.scale || 100, true);
+            var props = clip.getMGTComponent().properties;
+            setText(props, ly.text);
+            // parâmetros do NOSSO template (por nome) + a duração desta camada
+            var mt = {}, own = ly.mt || {};
+            for (var mk in own) if (own.hasOwnProperty(mk)) mt[mk] = own[mk];
+            mt[DUR] = Math.round(ly.dur * 1000) / 1000;
+            var miss = setParams(props, mt);
+            if (miss.length) problems.push(miss.join("/"));
+            // tamanho acima do que o slider aceita (200 px): o resto vai na escala do clipe
+            if (ly.scale && Math.abs(ly.scale - 100) > 0.5) {
+                for (var m = 0; m < clip.components.numItems; m++) {
+                    if (clip.components[m].displayName === "Motion") clip.components[m].properties.getParamForDisplayName("Scale").setValue(ly.scale, true);
                 }
             }
             clip.name = PREFIX + ly.text.replace(/[\r\n]+/g, " ");

@@ -1,5 +1,13 @@
 # MotionText — changelog
 
+## 0.3.0 (Willian Plugins 1.7.0) — 29/10/2026
+- Recriação (sem cópia) dos letterings de referência: template v2 com degradê, brilho, relevo, bordas orgânicas,
+  luz passando, caixa/pílula, sublinhado e permanência (onda, flutuar, tremer, pulso); 13 animações novas; 9 looks.
+- Will Letterings: 31 combinações recriadas no nosso template (dados em combos.json); cards com prévia animada.
+- Removidos do plugin os 14 MOGRTs copiados (pasta letterings) e a biblioteca de MOGRTs avulsos.
+- Templates de várias fontes gerados numa abertura só do After Effects; log com tempo por passo.
+- Prévia do texto compacta (faixa de 170 px em volta do texto).
+
 ## 0.2.1 (Willian Plugins 1.6.1) — 28/10/2026
 - Combinações e letterings prontos renomeados para **Will Letterings**.
 

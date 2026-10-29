@@ -156,35 +156,44 @@
         step: function (p) { return p > 0 ? 1 : 0; },
         none: function () { return 1; }
     };
+    // pseudo-aleatório determinístico (mesma ideia do seedRandom das expressões)
+    function rnd(seed) { var x = Math.sin(seed * 12.9898) * 43758.5453; return x - Math.floor(x); }
 
     // quantidade do animador (0 = no lugar, 1 = valor inicial) para a unidade idx (0-based) no tempo t
     function amount(anim, idx, t, p) {
         var st = p.stagger * anim.stagger, dur = Math.max(0.01, p.inDur), I = p.intensity / 100;
         var pr = Math.min(1, Math.max(0, (t - idx * st) / dur));
-        var v = EASE[anim.ease](pr, I);
+        var v;
+        if (anim.ease === "flicker") v = pr >= 1 ? 1 : (pr <= 0 ? 0 : (rnd(idx * 7 + Math.floor(t * 18)) > 0.45 ? 1 : 0));
+        else v = EASE[anim.ease](pr, I);
         if (p.exit === 1) { var q = Math.min(1, Math.max(0, (p.dur - t) / Math.max(0.01, p.outDur))); v = Math.min(v, 1 - Math.pow(1 - q, 3)); }
         return (1 - v) * (anim.ease === "back" || anim.ease === "bounce" ? 1 : I);
     }
 
     // estilo CSS de uma unidade: cada propriedade do animador vai do valor inicial ao final conforme a quantidade
-    function unitStyle(anim, a, accent, unitScale) {
-        var k = unitScale || 1, tx = 0, ty = 0, sc = 1, rot = 0, op = 1, blur = 0, color = null;
+    function unitStyle(anim, a, accent, unitScale, idx) {
+        var k = unitScale || 1, tx = 0, ty = 0, sc = 1, scy = null, rot = 0, op = 1, blur = 0, color = null;
+        var rx = 1, ry = 1;
+        if (anim.random) { rx = rnd(idx * 31 + 1) * 2 - 1; ry = rnd(idx * 31 + 2) * 2 - 1; }
         anim.props.forEach(function (pp) {
             var m = pp[0], v = pp[1];
             if (m === "ADBE Text Opacity") op = 1 - a;
-            else if (m === "ADBE Text Scale 3D") sc = 1 + (v[0] / 100 - 1) * a;
-            else if (m === "ADBE Text Position 3D") { tx = v[0] * a * k; ty = v[1] * a * k; }
+            else if (m === "ADBE Text Scale 3D") { sc = 1 + (v[0] / 100 - 1) * a; scy = 1 + (v[1] / 100 - 1) * a; }
+            else if (m === "ADBE Text Position 3D") { tx = v[0] * a * k * rx; ty = v[1] * a * k * ry; }
+            else if (m === "ADBE Text Tracking Amount") tx = (idx % 2 ? 1 : -1) * v * a * k * 0.6;
             else if (m === "ADBE Text Rotation") rot = v * a;
             else if (m === "ADBE Text Blur") blur = v[0] * a * k;
-            else if (m === "ADBE Text Fill Color" && a > 0.02) color = accent;
+            else if (m === "ADBE Text Fill Color" && a > 0.02) color = v === "destaque" ? accent : "#ffffff";
         });
-        return { transform: "translate(" + tx.toFixed(1) + "px," + ty.toFixed(1) + "px) scale(" + Math.max(0, sc).toFixed(3) + ") rotate(" + rot.toFixed(1) + "deg)",
+        var scale = scy === null ? "scale(" + Math.max(0, sc).toFixed(3) + ")" : "scale(" + Math.max(0, sc).toFixed(3) + "," + Math.max(0, scy).toFixed(3) + ")";
+        return { transform: "translate(" + tx.toFixed(1) + "px," + ty.toFixed(1) + "px) " + scale + " rotate(" + (rot * (anim.random ? rx : 1)).toFixed(1) + "deg)",
+            scramble: !!anim.scramble && a > 0.5,
             opacity: Math.max(0, Math.min(1, op)), filter: blur > 0.3 ? "blur(" + blur.toFixed(1) + "px)" : "none", color: color };
     }
 
     // ---------- templates (cache por par de fontes e tamanho do quadro) ----------
     function hash(s) { var h = 5381; for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(36); }
-    var TEMPLATE_VERSION = "1";
+    var TEMPLATE_VERSION = "2";   // 2: estilos e animações recriados (degradê, brilho, caixa, sublinhado, permanência...)
     function templateName(fontA, fontB, w, h) { return "MT_" + hash([TEMPLATE_VERSION, fontA, fontB, w, h].join("|")); }
     function templatePath(name) { return path.join(DATA, "templates", name + ".mogrt"); }
 
@@ -219,39 +228,44 @@
 
     function readLog(f) { try { var l = fs.readFileSync(f, "utf8").trim().split("\n"); return l[l.length - 1]; } catch (e) { return ""; } }
 
-    // gera o template no After Effects; resolve com o caminho do .mogrt. Se o AE já estava aberto,
-    // o script roda nele e o AE continua aberto; se o painel abriu o AE, o script fecha o AE no fim.
-    function buildTemplate(o, extRoot, onTick) {
+    // gera templates no After Effects (vários pares de fontes numa abertura só); resolve com os caminhos dos .mogrt.
+    // Se o AE já estava aberto, o script roda nele e o AE continua aberto; se o painel abriu o AE, ele fecha no fim.
+    function buildTemplates(list, w, h, extRoot, onTick) {
         return new Promise(function (resolve, reject) {
             var exe = findAE();
             if (!exe) { reject(new Error("After Effects não encontrado em C:\\Program Files\\Adobe.")); return; }
-            var name = templateName(o.fontA, o.fontB, o.width, o.height), out = path.join(DATA, "templates");
-            var jobDir = jobFolder();
+            var out = path.join(DATA, "templates"), jobDir = jobFolder();
             fs.mkdirSync(out, { recursive: true }); fs.mkdirSync(jobDir, { recursive: true });
-            var result = path.join(jobDir, name + ".json"), job = path.join(jobDir, name + ".jsx");
+            var jobs = list.map(function (o) { return { fontA: o.fontA, fontB: o.fontB, name: templateName(o.fontA, o.fontB, w, h) }; });
+            var id = "MTJ_" + hash(jobs.map(function (j) { return j.name; }).join("|"));
+            var result = path.join(jobDir, id + ".json"), job = path.join(jobDir, id + ".jsx");
             try { fs.unlinkSync(result); } catch (e) {}
             var fwd = function (p) { return p.replace(/\\/g, "/"); };
-            var cfg = { anims: fwd(path.join(extRoot, "motiontext", "anims.js")), fontA: o.fontA, fontB: o.fontB,
-                width: o.width, height: o.height, name: name, outDir: fwd(out), result: fwd(result), quit: !aeRunning() };
+            var cfg = { anims: fwd(path.join(extRoot, "motiontext", "anims.js")), width: w, height: h, outDir: fwd(out),
+                result: fwd(result), quit: !aeRunning(), jobs: jobs };
             fs.writeFileSync(job, "var MT_JOB = " + JSON.stringify(cfg) + ";\n$.evalFile(File(" +
                 JSON.stringify(fwd(path.join(extRoot, "motiontext", "ae", "build_template.jsx"))) + "));\n", "utf8");
             cp.spawn(exe, ["-r", job], { detached: true, stdio: "ignore" }).unref();
-            var t0 = Date.now(), timer = setInterval(function () {
+            var limit = 120 + 30 * jobs.length, t0 = Date.now(), timer = setInterval(function () {
                 var el = (Date.now() - t0) / 1000;
                 if (onTick) onTick(el, readLog(result + ".log"));
                 if (fs.existsSync(result)) {
                     clearInterval(timer);
                     var r; try { r = JSON.parse(fs.readFileSync(result, "utf8").replace(/^\uFEFF/, "")); } catch (e) { r = { ok: false, log: String(e) }; }
-                    if (r.ok && fs.existsSync(templatePath(name))) resolve(templatePath(name));
-                    else reject(new Error("O After Effects não gerou o template: " + String(r.log || "").slice(-300)));
-                } else if (el > 300) {
+                    var paths = jobs.map(function (j) { return templatePath(j.name); });
+                    var missing = paths.filter(function (p) { return !fs.existsSync(p); });
+                    if (!missing.length) resolve(paths);
+                    else reject(new Error("O After Effects não gerou " + missing.length + " template(s): " + String(r.log || "").slice(-300)));
+                } else if (el > limit) {
                     clearInterval(timer);
-                    reject(new Error("O After Effects não respondeu em 5 min. Veja se há um aviso aberto nele (recuperação após travamento, por exemplo)."));
+                    reject(new Error("O After Effects não respondeu. Veja se há um aviso aberto nele (recuperação após travamento, por exemplo); se o AE ficou aberto sem fazer nada, feche-o e tente de novo."));
                 }
             }, 1000);
         });
     }
-
+    function buildTemplate(o, extRoot, onTick) {
+        return buildTemplates([o], o.width, o.height, extRoot, onTick).then(function (p) { return p[0]; });
+    }
     // ---------- presets e estado ----------
     function readJSON(name, def) {
         try { return JSON.parse(fs.readFileSync(path.join(DATA, name), "utf8").replace(/^\uFEFF/, "")); } catch (e) { return def; }
@@ -264,7 +278,7 @@
     var api = {
         DATA: DATA, parseMarkup: parseMarkup, toMarkup: toMarkup, plain: plain, autoHierarchy: autoHierarchy,
         layout: layout, measure: measure, parseSRT: parseSRT, snap: snap, amount: amount, unitStyle: unitStyle,
-        templateName: templateName, templatePath: templatePath, buildTemplate: buildTemplate, findAE: findAE,
+        templateName: templateName, templatePath: templatePath, buildTemplate: buildTemplate, buildTemplates: buildTemplates, findAE: findAE,
         readJSON: readJSON, writeJSON: writeJSON, exists: function (p) { return fs.existsSync(p); }
     };
     if (typeof module !== "undefined" && module.exports) module.exports = api;

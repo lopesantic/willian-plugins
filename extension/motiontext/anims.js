@@ -33,7 +33,36 @@ var MT_ANIMS = [
       props: [["ADBE Text Position 3D", [0, 80, 0]], ["ADBE Text Opacity", 0]] },
     { id: "color", name: "Color Shift", cat: "Destaque", basedOn: 3, ease: "out", stagger: 1,
       props: [["ADBE Text Fill Color", "destaque"], ["ADBE Text Opacity", 0]] },
-    { id: "none", name: "Sem animação", cat: "Entrada", basedOn: 3, ease: "none", stagger: 0, props: [] }
+    { id: "none", name: "Sem animação", cat: "Entrada", basedOn: 3, ease: "none", stagger: 0, props: [] },
+    // recriadas a partir do estudo dos letterings de referência do Willian (28/10/2026); só comportamento, sem cópia
+    { id: "trackin", name: "Tracking Blur", cat: "Entrada", basedOn: 1, ease: "out", stagger: 0,
+      props: [["ADBE Text Tracking Amount", 80], ["ADBE Text Blur", [30, 30]], ["ADBE Text Opacity", 0]] },
+    { id: "sanfona", name: "Sanfona", cat: "Por caractere", basedOn: 1, ease: "back", stagger: 0.2,
+      props: [["ADBE Text Scale 3D", [100, 0, 100]], ["ADBE Text Opacity", 0]] },
+    { id: "blurdown", name: "Desce com blur", cat: "Por caractere", basedOn: 1, ease: "out", stagger: 0.25,
+      props: [["ADBE Text Position 3D", [0, -70, 0]], ["ADBE Text Blur", [25, 25]], ["ADBE Text Opacity", 0]] },
+    { id: "blurup", name: "Sobe com blur", cat: "Por caractere", basedOn: 1, ease: "out", stagger: 0.25,
+      props: [["ADBE Text Position 3D", [0, 70, 0]], ["ADBE Text Blur", [25, 25]], ["ADBE Text Opacity", 0]] },
+    { id: "blurright", name: "Direita com blur", cat: "Por caractere", basedOn: 1, ease: "out", stagger: 0.25,
+      props: [["ADBE Text Position 3D", [-90, 0, 0]], ["ADBE Text Blur", [25, 25]], ["ADBE Text Opacity", 0]] },
+    { id: "blurleft", name: "Esquerda com blur", cat: "Por caractere", basedOn: 1, ease: "out", stagger: 0.25,
+      props: [["ADBE Text Position 3D", [90, 0, 0]], ["ADBE Text Blur", [25, 25]], ["ADBE Text Opacity", 0]] },
+    { id: "wordblur", name: "Palavra com blur", cat: "Por palavra", basedOn: 3, ease: "out", stagger: 1,
+      props: [["ADBE Text Position 3D", [0, 40, 0]], ["ADBE Text Blur", [30, 30]], ["ADBE Text Opacity", 0]] },
+    { id: "spin", name: "Girando", cat: "Por caractere", basedOn: 1, ease: "back", stagger: 0.25,
+      props: [["ADBE Text Rotation", 180], ["ADBE Text Scale 3D", [40, 40, 100]], ["ADBE Text Opacity", 0]] },
+    { id: "flicker", name: "Flicker", cat: "Por caractere", basedOn: 1, ease: "flicker", stagger: 0.15,
+      props: [["ADBE Text Opacity", 0]] },
+    { id: "decode", name: "Código", cat: "Por caractere", basedOn: 1, ease: "step", stagger: 0.35, scramble: true,
+      props: [["ADBE Text Character Offset", 30]] },
+    { id: "scatter", name: "Disperso", cat: "Por caractere", basedOn: 1, ease: "out", stagger: 0.1, random: true,
+      props: [["ADBE Text Position 3D", [260, 260, 0]], ["ADBE Text Rotation", 90], ["ADBE Text Opacity", 0]] },
+    { id: "brightletter", name: "Brilho por letra", cat: "Destaque", basedOn: 1, ease: "out", stagger: 0.3,
+      props: [["ADBE Text Fill Color", [1, 1, 1, 1]], ["ADBE Text Scale 3D", [130, 130, 100]], ["ADBE Text Opacity", 0]] },
+    { id: "wavein", name: "Onda", cat: "Por caractere", basedOn: 1, ease: "back", stagger: 0.18,
+      props: [["ADBE Text Position 3D", [0, 80, 0]], ["ADBE Text Opacity", 0]] }
 ];
 var MT_EXITS = ["Nenhuma", "Reverso", "Fade"];
-if (typeof module !== "undefined" && module.exports) module.exports = { anims: MT_ANIMS, exits: MT_EXITS };
+// animação contínua enquanto o texto está na tela (depois da entrada)
+var MT_HOLDS = ["Nenhuma", "Onda", "Flutuar", "Tremer", "Pulso"];
+if (typeof module !== "undefined" && module.exports) module.exports = { anims: MT_ANIMS, exits: MT_EXITS, holds: MT_HOLDS };

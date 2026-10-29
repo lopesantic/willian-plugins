@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Willian Plugins: um pacote, um painel por ferramenta. Sem login, sem servidor. -->
-<ExtensionManifest Version="7.0" ExtensionBundleId="com.willian.plugins" ExtensionBundleVersion="1.6.1" ExtensionBundleName="Willian Plugins" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ExtensionManifest Version="7.0" ExtensionBundleId="com.willian.plugins" ExtensionBundleVersion="1.7.0" ExtensionBundleName="Willian Plugins" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ExtensionList>
     <Extension Id="com.willian.plugins.margens" Version="0.1.0"/>
     <Extension Id="com.willian.plugins.autocut" Version="0.1.0"/>
@@ -10,7 +10,7 @@
     <Extension Id="com.willian.plugins.lutlibrary" Version="0.1.0"/>
     <Extension Id="com.willian.plugins.transcrever" Version="0.1.0"/>
     <Extension Id="com.willian.plugins.animar" Version="0.1.0"/>
-    <Extension Id="com.willian.plugins.motiontext" Version="0.2.0"/>
+    <Extension Id="com.willian.plugins.motiontext" Version="0.3.0"/>
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList><Host Name="PPRO" Version="[25.0,99.9]"/></HostList>

@@ -21,7 +21,9 @@
         text: "Nunca *desista* _dos_ seus sonhos",
         anim: "pop", favs: [], cat: "Todas",
         inDur: 0.45, stagger: 0.08, intensity: 100, exit: 1, outDur: 0.25, dur: 2.5, stroke: 0, shadow: 0,
-        margin: "reels", posY: 62, autoFit: true, applyExisting: false
+        margin: "reels", posY: 62, autoFit: true, applyExisting: false,
+        hold: 0, holdInt: 30, grad: 0, gradA: "#ffffff", gradB: "#8c8f99", glow: 0, glowR: 30, bevel: 0, edges: 0, light: 0,
+        box: 0, boxColor: "#ec4899", boxRound: 40, boxPad: 30, line: 0, lineColor: "#ff8c1a"
     };
     var S = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), E.readJSON("state.json", {}));
     if (S.cat === "Nat" + "asha") S.cat = "Will Letterings";   // nome antigo da categoria
@@ -137,7 +139,12 @@
             "Intensidade (%)": +S.intensity,
             "Posição horizontal (%)": clamp((g.left + (seq.w - g.left - g.right) / 2) / seq.w * 100),
             "Posição vertical (%)": +S.posY,
-            "Contorno": +S.stroke, "Cor do contorno": rgb(S.colors.stroke), "Sombra (%)": +S.shadow
+            "Contorno": +S.stroke, "Cor do contorno": rgb(S.colors.stroke), "Sombra (%)": +S.shadow,
+            "Perman\u00eancia": +S.hold, "For\u00e7a da perman\u00eancia": +S.holdInt,
+            "Degrad\u00ea (%)": +S.grad, "Degrad\u00ea cor 1": rgb(S.gradA), "Degrad\u00ea cor 2": rgb(S.gradB),
+            "Brilho": +S.glow, "Raio do brilho": +S.glowR, "Relevo": +S.bevel, "Bordas org\u00e2nicas": +S.edges, "Luz passando": +S.light,
+            "Caixa (%)": +S.box, "Cor da caixa": rgb(S.boxColor), "Arredondar caixa": +S.boxRound, "Margem da caixa": +S.boxPad,
+            "Sublinhado": +S.line, "Cor do sublinhado": rgb(S.lineColor)
         };
     }
 
@@ -149,7 +156,10 @@
         "Cor padrão": [1, 1, 1], "Cor destaque": [1, 0.83, 0.2], "Cor ligação": [1, 1, 1],
         "Duração da entrada (s)": 0.45, "Atraso por palavra (s)": 0.08, "Duração da saída (s)": 0.25,
         "Intensidade (%)": 100, "Posição horizontal (%)": 50, "Posição vertical (%)": 50,
-        "Contorno": 0, "Cor do contorno": [0, 0, 0], "Sombra (%)": 0
+        "Contorno": 0, "Cor do contorno": [0, 0, 0], "Sombra (%)": 0,
+        "Perman\u00eancia": 0, "For\u00e7a da perman\u00eancia": 30, "Degrad\u00ea (%)": 0, "Degrad\u00ea cor 1": [1, 1, 1], "Degrad\u00ea cor 2": [0.55, 0.55, 0.6],
+        "Brilho": 0, "Raio do brilho": 30, "Relevo": 0, "Bordas org\u00e2nicas": 0, "Luz passando": 0,
+        "Caixa (%)": 0, "Cor da caixa": [0.93, 0.28, 0.6], "Arredondar caixa": 40, "Margem da caixa": 30, "Sublinhado": 0, "Cor do sublinhado": [1, 0.55, 0.1]
     };
     function onlyChanged(p) {
         var out = {};
@@ -229,9 +239,17 @@
                 wd.dataset.color = [S.colors.pad, S.colors.hi, S.colors.link][o.lv];
                 wd.style.color = wd.dataset.color;
                 if (S.stroke > 0) wd.style.webkitTextStroke = Math.max(0.5, S.stroke * k) + "px " + S.colors.stroke;
-                if (S.shadow > 0) wd.style.textShadow = (6 * k) + "px " + (6 * k) + "px " + (14 * k) + "px rgba(0,0,0," + (S.shadow / 100) + ")";
+                var shadows = [];
+                if (S.shadow > 0) shadows.push((6 * k) + "px " + (6 * k) + "px " + (14 * k) + "px rgba(0,0,0," + (S.shadow / 100) + ")");
+                if (S.glow > 0) shadows.push("0 0 " + Math.max(2, S.glowR * k * 1.5) + "px " + wd.dataset.color, "0 0 " + Math.max(1, S.glowR * k * 0.6) + "px " + wd.dataset.color);
+                if (shadows.length) wd.style.textShadow = shadows.join(",");
+                // degradê aproximado: o navegador pinta o texto com o gradiente (no template ele é recortado pelo texto)
+                if (S.grad >= 50) {
+                    wd.style.backgroundImage = "linear-gradient(" + S.gradA + "," + S.gradB + ")";
+                    wd.style.webkitBackgroundClip = "text"; wd.style.color = "transparent"; wd.dataset.color = "transparent";
+                }
                 o.w.split("").forEach(function (ch) {
-                    var c = document.createElement("span"); c.className = "mt-u"; c.textContent = ch; wd.appendChild(c); units[1].push(c);
+                    var c = document.createElement("span"); c.className = "mt-u"; c.textContent = ch; c.dataset.ch = ch; wd.appendChild(c); units[1].push(c);
                 });
                 units[3].push(wd);
                 ld.appendChild(wd);
@@ -246,10 +264,16 @@
         return units;
     }
 
+    function hexA(hex, a) { var n = parseInt(hex.slice(1), 16); return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")"; }
     var previews = []; // {units, anim?, k, el, kind}
     function renderStage() {
+        // faixa compacta: o quadro inteiro fica "dentro" e a janela mostra só a altura em volta do texto
         var stage = $("stage"), W = stage.clientWidth || 300, k = W / seq.w, g = guide();
-        stage.style.height = (W * seq.h / seq.w) + "px";
+        var FH = W * seq.h / seq.w, BAND = Math.min(FH, 170), ty = S.posY / 100 * seq.h * k;
+        stage.style.height = BAND + "px";
+        var inner = $("stageInner");
+        inner.style.height = FH + "px";
+        inner.style.transform = "translateY(" + (-Math.max(0, Math.min(FH - BAND, ty - BAND / 2))) + "px)";
         var safe = $("safe");
         safe.style.left = g.left * k + "px"; safe.style.right = g.right * k + "px";
         safe.style.top = g.top * k + "px"; safe.style.bottom = g.bottom * k + "px";
@@ -258,7 +282,18 @@
         t.style.left = (g.left * k) + "px"; t.style.width = ((seq.w - g.left - g.right) * k) + "px";
         t.style.top = (S.posY / 100 * seq.h * k) + "px";
         var fw = finalWords(words);
-        var units = buildText(t, fw, k, S.autoFit ? fit(fw) : 1);
+        // bloco do texto (inline-block) para a caixa e o sublinhado abraçarem só o texto
+        t.innerHTML = "";
+        var blk = document.createElement("div"); blk.className = "mt-block"; t.appendChild(blk);
+        var units = buildText(blk, fw, k, S.autoFit ? fit(fw) : 1);
+        if (S.box > 0) {
+            var pad = S.boxPad * 2 * k;
+            blk.style.background = S.boxColor; blk.style.opacity = "";
+            blk.style.padding = (pad / 2) + "px " + pad + "px";
+            blk.style.borderRadius = Math.min(60, S.boxRound) + "px";
+            blk.style.backgroundColor = hexA(S.boxColor, S.box / 100);
+        }
+        if (S.line > 0) blk.style.boxShadow = "inset 0 -" + Math.max(1, S.line * k) + "px 0 " + S.lineColor;
         previews = previews.filter(function (p) { return p.kind !== "stage"; });
         previews.push({ kind: "stage", units: units, k: k, el: t });
         var y = S.posY / 100 * seq.h, out = S.margin !== "none" && (y < g.top || y > seq.h - g.bottom);
@@ -279,22 +314,10 @@
     function renderAnimGrid() {
         var grid = $("animGrid"); grid.innerHTML = "";
         previews = previews.filter(function (p) { return p.kind !== "card"; });
-        if (S.cat === "Will Letterings") {
-            // letterings do pack: aplicados com o texto do painel e o estilo próprio de cada um
-            (NAT.anims || []).forEach(function (a) {
-                var card = document.createElement("div");
-                card.className = "mt-card" + (S.useNat && S.natAnim === a.file ? " active" : "");
-                card.innerHTML = '<div class="mt-view"><img class="mt-thumb" alt=""></div><div class="mt-name"></div>';
-                card.querySelector("img").src = "letterings/" + a.thumb;
-                card.querySelector(".mt-name").textContent = a.name;
-                card.addEventListener("click", function () { S.useNat = true; S.natAnim = a.file; renderAnimGrid(); save(); say("Will Letterings \"" + a.name + "\": \"Aplicar no cursor\" usa o texto do painel com o estilo dele.", "ok"); });
-                grid.appendChild(card);
-            });
-            return;
-        }
         ANIMS.forEach(function (a) {
             if (S.cat === "Favoritos" && S.favs.indexOf(a.id) < 0) return;
-            if (S.cat !== "Todas" && S.cat !== "Favoritos" && a.cat !== S.cat) return;
+            if (S.cat === "Will Letterings") { if (ANIMS.indexOf(a) < 16) return; }
+            else if (S.cat !== "Todas" && S.cat !== "Favoritos" && a.cat !== S.cat) return;
             var card = document.createElement("div");
             card.className = "mt-card" + (S.anim === a.id ? " active" : "");
             var view = document.createElement("div"); view.className = "mt-view";
@@ -307,7 +330,7 @@
                 renderAnimGrid(); save();
             });
             card.appendChild(view); card.appendChild(name); card.appendChild(star);
-            card.addEventListener("click", function () { S.anim = a.id; S.useNat = false; renderAnimGrid(); changed(true); });
+            card.addEventListener("click", function () { S.anim = a.id; renderAnimGrid(); changed(true); });
             grid.appendChild(card);
             var units = buildText(view, [{ w: "SEU", lv: 0 }, { w: "TEXTO", lv: 1 }], 0.16);
             previews.push({ kind: "card", anim: a, units: units, k: 0.16, el: view });
@@ -322,12 +345,28 @@
         if (t > dur) fade = 0;
         previews.forEach(function (p) {
             if (p.kind === "combo") return;
+            if (p.kind === "nat" && !document.body.contains(p.el)) return;
             var anim = p.anim || ANIMS[animIndex(S.anim)], list = p.units[anim.basedOn] || p.units[3];
-            p.el.style.opacity = fade;
+            var tl = p.kind === "nat" ? t - p.delay : t;
+            p.el.style.opacity = p.kind === "nat" ? (tl < 0 || t > dur ? 0 : 1) : fade;
             for (var i = 0; i < list.length; i++) {
-                var st = E.unitStyle(anim, E.amount(anim, i, t, pr), S.colors.hi, p.k), el = list[i];
+                var st = E.unitStyle(anim, E.amount(anim, i, tl, pr), S.colors.hi, p.k, i), el = list[i];
                 el.style.transform = st.transform; el.style.opacity = st.opacity; el.style.filter = st.filter;
-                if (anim.basedOn === 3 && el.dataset.color) el.style.color = st.color || el.dataset.color;
+                if (anim.basedOn === 3 && el.dataset.color && el.dataset.color !== "transparent") el.style.color = st.color || el.dataset.color;
+                // "Código": letra sorteada até assentar
+                if (el.dataset.ch) el.textContent = st.scramble && el.dataset.ch.trim() ? String.fromCharCode(65 + Math.floor(Math.random() * 26)) : el.dataset.ch;
+            }
+            // permanência só no palco: onda, tremer e pulso por letra (somada à entrada quando a entrada é por letra)
+            if (p.kind === "stage" && +S.hold > 0) {
+                var chars = p.units[1], F = S.holdInt / 100, m = +S.hold;
+                for (var c = 0; c < chars.length; c++) {
+                    var base = anim.basedOn === 1 ? chars[c].style.transform : "", hx = 0, hy = 0, hs = 1;
+                    if (m === 1) hy = -30 * F * Math.sin(t * 5 - (c + 1) * 0.55) * p.k;
+                    if (m === 3) { hx = 14 * F * Math.sin(t * 9 + c * 1.7) * p.k; hy = 14 * F * Math.cos(t * 8 + c * 2.3) * p.k; }
+                    if (m === 4) hs = 1 + 0.12 * F * (0.5 + 0.5 * Math.sin(t * 4 - c));
+                    chars[c].style.transform = base + " translate(" + hx.toFixed(1) + "px," + hy.toFixed(1) + "px) scale(" + hs.toFixed(3) + ")";
+                }
+                if (m === 2) p.el.style.marginTop = (t * S.holdInt * 0.4 * p.k).toFixed(1) + "px"; else p.el.style.marginTop = "";
             }
         });
         requestAnimationFrame(tick);
@@ -374,9 +413,9 @@
         });
     }
 
-    // ---------- Will Letterings (combinações e letterings prontos, cópia autorizada pelo Willian) ----------
-    var NAT = { anims: [], combos: [] }, natFolder = WP.extensionRoot() + "/motiontext/letterings", natSel = null;
-    try { NAT = JSON.parse(require("fs").readFileSync(natFolder + "/combos.json", "utf8")); } catch (e) {}
+    // ---------- Will Letterings: combinações recriadas no nosso template (dados em combos.json, sem arquivo de terceiros) ----------
+    var NAT = { combos: [] }, natSel = null;
+    try { NAT = JSON.parse(require("fs").readFileSync(WP.extensionRoot() + "/motiontext/combos.json", "utf8")); } catch (e) {}
     document.querySelectorAll("#comboSrc button").forEach(function (b) {
         b.addEventListener("click", function () {
             document.querySelectorAll("#comboSrc button").forEach(function (x) { x.classList.toggle("active", x === b); });
@@ -385,25 +424,42 @@
             if (b.dataset.src === "nat") renderNat(); else renderCombos();
         });
     });
-    // miniatura: camadas na posição original, recortando a faixa central do quadro 9:16
+    function fontOk(ps) { return byPs[ps] ? ps : S.fonts[0].ps; }
+    function fam(ps) { var f = byPs[ps]; return f ? (f.legacy || f.family) : ps; }
+    // miniatura: vídeo renderizado da combinação (previews/<id>.mp4) ou as camadas paradas na posição original
     function renderNat() {
         var grid = $("natGrid"); grid.innerHTML = "";
+        previews = previews.filter(function (p) { return p.kind !== "nat"; });
         NAT.combos.forEach(function (cb) {
             var card = document.createElement("div"); card.className = "mt-card tall" + (natSel === cb ? " active" : "");
             var view = document.createElement("div"); view.className = "mt-view mt-natview";
-            var W = 150, k = W / 1080, H = 104;
-            cb.layers.forEach(function (l) {
-                var d = document.createElement("div"); d.className = "mt-natlayer";
-                d.textContent = l.text.replace(/\r/g, "\n");
-                var f = byPs[l.font];
-                d.style.fontFamily = "'" + (f ? (f.legacy || f.family) : l.font) + "'";
-                d.style.fontWeight = f && /bold/i.test(f.legacyStyle || "") ? "700" : "400";
-                d.style.fontSize = Math.max(5, l.size * k * (l.scale || 100) / 100) + "px";
-                d.style.color = l.color;
-                d.style.left = (l.pos[0] * 100) + "%";
-                d.style.top = (H / 2 + (l.pos[1] - 0.5) * 1920 * k) + "px";
-                view.appendChild(d);
-            });
+            var pv = WP.extensionRoot() + "/motiontext/previews/" + cb.id + ".mp4";
+            if (E.exists(pv)) {
+                var vid = document.createElement("video"); vid.className = "mt-combovid"; vid.muted = true; vid.loop = true; vid.autoplay = true; vid.playsInline = true;
+                vid.src = "previews/" + cb.id + ".mp4"; view.appendChild(vid);
+            } else {
+                var k = 150 / 1080, H = 104;
+                cb.layers.forEach(function (l) {
+                    var d = document.createElement("div"); d.className = "mt-natlayer";
+                    // palavras > letras, para a prévia animar a camada com a animação recriada e o atraso dela
+                    var units = { 1: [], 3: [], 4: [d] };
+                    l.text.replace(/\r/g, "\n").split(/(\s+)/).forEach(function (part) {
+                        if (/^\s+$/.test(part)) { d.appendChild(document.createTextNode(part.indexOf("\n") >= 0 ? "\n" : " ")); return; }
+                        var w = document.createElement("span"); w.className = "mt-u";
+                        part.split("").forEach(function (ch) { var c = document.createElement("span"); c.className = "mt-u"; c.textContent = ch; c.dataset.ch = ch; w.appendChild(c); units[1].push(c); });
+                        units[3].push(w); d.appendChild(w);
+                    });
+                    previews.push({ kind: "nat", anim: ANIMS[animIndex(l.anim)], units: units, k: k, el: d, delay: l.delay });
+                    d.style.fontFamily = "'" + fam(l.font) + "'";
+                    d.style.fontSize = Math.max(5, l.size * k) + "px";
+                    d.style.color = l.color;
+                    if (l.grad) { d.style.backgroundImage = "linear-gradient(" + l.grad[0] + "," + l.grad[1] + ")"; d.style.webkitBackgroundClip = "text"; d.style.color = "transparent"; }
+                    if (l.glow) d.style.textShadow = "0 0 4px " + l.color;
+                    d.style.left = l.pos[0] + "%";
+                    d.style.top = (H / 2 + (l.pos[1] / 100 - 0.5) * 1920 * k) + "px";
+                    view.appendChild(d);
+                });
+            }
             var name = document.createElement("div"); name.className = "mt-name"; name.textContent = cb.layers.length + " camadas";
             card.appendChild(view); card.appendChild(name);
             card.addEventListener("click", function () { natSel = cb; renderNat(); openNatEditor(); });
@@ -412,11 +468,11 @@
     }
     function openNatEditor() {
         var ed = $("natEditor"), box = $("natLayers"); ed.classList.remove("hidden");
-        $("natTitle").textContent = natSel.layers.map(function (l) { return l.anim; }).join(" + ");
+        $("natTitle").textContent = natSel.layers.map(function (l) { return (ANIMS[animIndex(l.anim)] || {}).name || l.anim; }).join(" + ");
         box.innerHTML = "";
         natSel.layers.forEach(function (l, i) {
             var inp = document.createElement("input"); inp.type = "search"; inp.value = l.text.replace(/\r/g, " ");
-            inp.dataset.i = i; inp.title = l.font + " · " + l.anim;
+            inp.dataset.i = i; inp.title = l.font + (byPs[l.font] ? "" : " (não instalada: usa a fonte padrão)");
             box.appendChild(inp);
         });
         ed.scrollIntoView({ block: "nearest" });
@@ -431,10 +487,39 @@
             inp.value = mine.slice(pos, pos + n).join(" "); pos += n;
         });
     });
+    // camada recriada -> parâmetros do nosso template
+    function comboLayer(l, text) {
+        var g = guide(), maxW = seq.w - g.left - g.right, font = fontOk(l.font);
+        var w = Math.max.apply(null, text.split(/\r|\n/).map(function (ln) { return E.measure(ln, { family: fam(font), size: l.size, tracking: l.tracking }); }));
+        var size = l.size;
+        if (S.autoFit && w > maxW) size = Math.floor(size * maxW / w);   // texto mais longo que o original: cabe na margem
+        var px = Math.min(size, 200);
+        var mt = {
+            "Animação": animIndex(l.anim), "Saída": 1,
+            "Tamanho padrão": clamp(px / 2), "Tracking padrão": clamp(l.tracking / 4 + 50), "Cor padrão": rgb(l.color),
+            "Posição horizontal (%)": l.pos[0], "Posição vertical (%)": l.pos[1],
+            "Contorno": l.stroke || 0, "Permanência": l.hold || 0, "Bordas orgânicas": l.edges || 0
+        };
+        if (l.grad) { mt["Degradê (%)"] = 100; mt["Degradê cor 1"] = rgb(l.grad[0]); mt["Degradê cor 2"] = rgb(l.grad[1]); }
+        if (l.glow) { mt["Brilho"] = 55; mt["Raio do brilho"] = Math.min(100, l.glow); }
+        return { font: font, mogrt: E.templatePath(E.templateName(font, font, seq.w, seq.h)).replace(/\\/g, "/"),
+            delay: l.delay, dur: l.dur, layer: l.layer, text: text, mt: onlyChanged(mt), scale: size > 200 ? size / 2 : 100 };
+    }
+    // gera de uma vez os templates que faltam (uma abertura do After Effects para todas as fontes)
+    function ensureFonts(fontsList) {
+        var need = fontsList.filter(function (f, i) { return fontsList.indexOf(f) === i && !E.exists(E.templatePath(E.templateName(f, f, seq.w, seq.h))); });
+        if (!need.length) return Promise.resolve();
+        say("Gerando " + need.length + " template(s) no After Effects (1ª vez com estas fontes)…");
+        return E.buildTemplates(need.map(function (f) { return { fontA: f, fontB: f }; }), seq.w, seq.h, WP.extensionRoot(), function (sec, last) {
+            say("Gerando " + need.length + " template(s) no After Effects… " + Math.round(sec) + " s" + (last ? " · " + last : ""));
+        });
+    }
     function placeNat(layers) {
         return refreshSeq().then(function () {
-            var cfg = { start: E.snap(seq.playhead, seq.fps), folder: natFolder, layers: layers };
-            return WP.call("WPMotion.placeCombo", [JSON.stringify(cfg)]);
+            var built = layers.map(function (l) { return comboLayer(l, l.text); });
+            return ensureFonts(built.map(function (b) { return b.font; })).then(function () {
+                return WP.call("WPMotion.placeCombo", [JSON.stringify({ start: E.snap(seq.playhead, seq.fps), layers: built })]);
+            });
         }).then(function (d) {
             say(d.placed + " camada(s) a partir da V" + (d.firstTrack + 1) + (d.problems ? " · ajustes que falharam: " + d.problems : "") + ". Confira no Monitor de Programa.", d.problems ? "error" : "ok");
         });
@@ -442,28 +527,56 @@
     $("natApply").addEventListener("click", function () {
         if (!natSel) return;
         var btn = this; btn.disabled = true;
-        var g = guide(), maxW = seq.w - g.left - g.right;
         var layers = natSel.layers.map(function (l, i) {
-            var c = JSON.parse(JSON.stringify(l)); c.text = $("natLayers").querySelectorAll("input")[i].value || l.text;
-            // texto mais longo que o original: reduz a escala da camada até caber na margem (medido com a fonte real)
-            var f = byPs[c.font], fam = f ? (f.legacy || f.family) : c.font;
-            var w = Math.max.apply(null, c.text.split(/\r|\n/).map(function (ln) { return E.measure(ln, { family: fam, size: c.size, tracking: 0 }); }));
-            var sc = (c.scale || 100) / 100;
-            if (S.autoFit && w * sc > maxW) c.scale = Math.floor(maxW / w * 100);
-            return c;
+            var c = JSON.parse(JSON.stringify(l)); c.text = $("natLayers").querySelectorAll("input")[i].value || l.text; return c;
         });
         placeNat(layers).catch(function (e) { say(e.message, "error"); }).then(function () { btn.disabled = false; });
     });
+    // gancho de teste: aplica uma combinação recriada sem cliques (porta de depuração)
+    window.MT_test_combo = function (id, texts) {
+        var cb = NAT.combos.filter(function (c) { return c.id === id; })[0];
+        return placeNat(cb.layers.map(function (l, i) { var c = JSON.parse(JSON.stringify(l)); if (texts && texts[i]) c.text = texts[i]; return c; }));
+    };
 
     // ---------- controles de animação ----------
-    var UNITS = { inDur: " s", stagger: " s", intensity: "%", outDur: " s", dur: " s", stroke: "", shadow: "%" };
+    var UNITS = { inDur: " s", stagger: " s", intensity: "%", outDur: " s", dur: " s", stroke: "", shadow: "%",
+        holdInt: "%", grad: "%", glow: "", glowR: "", bevel: "", edges: "", light: "", line: " px", box: "%", boxRound: "%", boxPad: "" };
+    var STYLE_KEYS = ["holdInt", "grad", "glow", "glowR", "bevel", "edges", "light", "line", "box", "boxRound", "boxPad"];
     function showOut(k) { var o = $(k + "Out"); if (o && UNITS[k] !== undefined) o.textContent = S[k] + UNITS[k]; }
-    ["inDur", "stagger", "intensity", "outDur", "dur", "stroke", "shadow", "posY"].forEach(function (k) {
+    ["inDur", "stagger", "intensity", "outDur", "dur", "stroke", "shadow", "posY"].concat(STYLE_KEYS).forEach(function (k) {
         var el = $(k); el.value = S[k]; showOut(k);
         el.addEventListener("input", function () { S[k] = +el.value; showOut(k); changed(k !== "dur"); });
     });
     $("exit").value = S.exit;
     $("exit").addEventListener("change", function () { S.exit = +this.value; changed(true); });
+    $("hold").value = S.hold;
+    $("hold").addEventListener("change", function () { S.hold = +this.value; changed(true); });
+    ["gradA", "gradB", "boxColor", "lineColor"].forEach(function (k) {
+        $(k).value = S[k];
+        $(k).addEventListener("input", function () { S[k] = this.value; changed(true); });
+    });
+
+    // looks recriados a partir dos letterings de referência do Willian (só valores do nosso template)
+    var LOOKS = [
+        ["Limpo", { grad: 0, glow: 0, bevel: 0, edges: 0, light: 0, box: 0, line: 0, shadow: 0, hold: 0 }],
+        ["Prata", { grad: 100, gradA: "#ffffff", gradB: "#8a8d96", shadow: 55, glow: 0, bevel: 0, box: 0, line: 0 }],
+        ["Ouro", { box: 100, boxColor: "#f2ad3f", boxRound: 100, boxPad: 30, bevel: 60, grad: 100, gradA: "#ffe68a", gradB: "#8c520d", shadow: 30 }],
+        ["Prata metal", { box: 100, boxColor: "#b9bcc4", boxRound: 100, boxPad: 30, bevel: 60, grad: 100, gradA: "#ffffff", gradB: "#5b5f68", shadow: 30 }],
+        ["Destacado", { box: 90, boxColor: "#ec4899", boxRound: 20, boxPad: 20, grad: 0, bevel: 0 }],
+        ["Sublinhado", { line: 8, lineColor: "#ff8c1a", box: 0 }],
+        ["Neon", { glow: 70, glowR: 40, box: 0, grad: 0, bevel: 0 }],
+        ["Tinta", { edges: 45, glow: 0 }],
+        ["Luz", { light: 90, grad: 100, gradA: "#ffffff", gradB: "#8a8d96", shadow: 45 }]
+    ];
+    function renderLooks() {
+        var box = $("looks"); box.innerHTML = "";
+        LOOKS.forEach(function (L) {
+            var b = document.createElement("button"); b.className = "ghost chip"; b.textContent = L[0];
+            b.addEventListener("click", function () { Object.assign(S, L[1]); syncControls(); changed(true); say("Look \"" + L[0] + "\" aplicado ao estilo.", "ok"); });
+            box.appendChild(b);
+        });
+    }
+    renderLooks();
     $("margin").value = S.margin;
     $("margin").addEventListener("change", function () { S.margin = this.value; changed(); });
     $("autoFit").checked = S.autoFit;
@@ -528,12 +641,7 @@
 
     $("apply").addEventListener("click", function () {
         if (!words.length) { say("Escreva o texto primeiro.", "error"); return; }
-        var btn = this; btn.disabled = true;        if (S.useNat && S.natAnim) {
-            var txt = words.map(function (o, i) { return o.w + (i < words.length - 1 ? (o.br ? "\r" : " ") : ""); }).join("");
-            placeNat([{ file: S.natAnim, delay: 0, dur: +S.dur, layer: 0, text: txt, params: [] }])
-                .catch(function (e) { say(e.message, "error"); }).then(function () { btn.disabled = false; });
-            return;
-        }
+        var btn = this; btn.disabled = true;
         refreshSeq().then(ensureTemplate).then(function (mogrt) {
             var start = E.snap(seq.playhead, seq.fps), end = E.snap(start + (+S.dur), seq.fps);
             var cfg = { mogrt: mogrt.replace(/\\/g, "/"), items: [itemFor(words, start, end)], params: onlyChanged(params(1)) };
@@ -685,8 +793,10 @@
         });
     }
     function syncControls() {
-        ["inDur", "stagger", "intensity", "outDur", "dur", "stroke", "shadow", "posY"].forEach(function (k) { $(k).value = S[k]; showOut(k); });
+        ["inDur", "stagger", "intensity", "outDur", "dur", "stroke", "shadow", "posY"].concat(STYLE_KEYS).forEach(function (k) { $(k).value = S[k]; showOut(k); });
         $("exit").value = S.exit; $("margin").value = S.margin; $("autoFit").checked = S.autoFit;
+        ["gradA", "gradB", "boxColor", "lineColor"].forEach(function (k) { $(k).value = S[k]; });
+        $("hold").value = S.hold;
         renderAnimGrid();
     }
     $("savePreset").addEventListener("click", function () {

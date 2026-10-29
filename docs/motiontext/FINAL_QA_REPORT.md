@@ -48,6 +48,17 @@ contra ~250 ms do `importMGT`) e gravar só os parâmetros que diferem do padrã
 
 Não testado uma a uma: as outras 29 combinações e os outros 13 letterings, que usam o mesmo caminho.
 
+### Recriação (1.7.0, 29/10/2026)
+
+| Item | Resultado |
+|---|---|
+| Template v2 no AE (32 animadores, 7 efeitos, caixa e sublinhado) | 0 erro de expressão; exporta |
+| Estilos no Premiere: degradê prata, pílula Ouro com relevo, caixa + sublinhado + brilho, Código + onda + bordas + luz | OK em quadros exportados |
+| Combinações recriadas wl3, wl15, wl24 (Bridge) e wl3 pelo painel | OK: fontes, cores, brilho, degradê e bordas como as de referência |
+| Look Ouro + Código pelo painel (gerou o template v2 na hora) | OK: letras embaralhadas a 0,25 s e assentadas a 1,5 s |
+
+Não conferidas uma a uma: as outras 28 combinações e 11 das 13 animações novas (mesmo mecanismo).
+
 ## 2. Testado isolado (Node, sem Premiere)
 
 Marcação ida e volta; hierarquia automática; quebra sem palavra sozinha na última linha; leitura de SRT

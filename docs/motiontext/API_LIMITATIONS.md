@@ -19,7 +19,11 @@ Cada item diz como foi descoberto: **MEDIDO** (testado nesta máquina) ou **INFE
 | 13 | A animação de saída precisa da duração do clipe, que a expressão não lê do Premiere. | INFERIDO | Propriedade "Duração do clipe (s)", gravada pelo painel. Se o clipe for aparado à mão, "Atualizar legendas selecionadas" recalcula. |
 | 14 | Clipe MotionText de no máximo 60 s (duração da composição). | MEDIDO | Suficiente para legenda; documentado. |
 | 15 | Ajuste por palavra fino (cor, tamanho, rotação, contorno próprios de uma palavra) exigiria uma camada por palavra no template. | INFERIDO | 3 níveis por palavra (padrão, destaque, ligação), cada um herdando o estilo global do nível. |
-| 16 | Animações de "permanência" (pulso, balanço contínuo) não fazem parte do template v1. | — | Fica para uma versão futura; entrada e saída estão completas. |
+| 16 | Permanência: onda, flutuar, tremer e pulso valem para o bloco inteiro (não por nível de palavra). | MEDIDO | Desde o template v2 (1.7.0). |
 | 17 | A prévia do painel é desenhada pelo navegador do CEP com a mesma matemática das expressões, mas a renderização de fonte, borda e desfoque é do navegador. | MEDIDO (visual) | Rotulada como "aproximada"; o resultado real é o Monitor de Programa. |
 | 18 | Margens Reels/TikTok/Shorts não são publicadas pelas plataformas como número único. | INFERIDO | Mesmos valores do painel Margens; conferir no app. |
 | 19 | Nada impede o texto de cair sobre um rosto. | — | Controle de altura e aviso no painel; conferir no Monitor (regra 7 do Willian). |
+| 20 | Uma instância do After Effects que ficou aberta depois de um script (tela inicial, projeto sem título) passa a falhar em toda exportação de MOGRT (`exportAsMotionGraphicsTemplate` devolve false), e os próximos `AfterFX -r` caem nela. | MEDIDO | Fechar essa instância e gerar de novo; o painel avisa quando o AE não responde. O gerador não renomeia mais .mogrt antigo quando a exportação falha. |
+| 21 | Gerar o template v2 leva ~70–90 s por fonte (efeitos de estilo + 32 animadores). | MEDIDO | Cache por fonte; vários templates numa abertura do AE. |
+| 22 | Degradê vale para o bloco inteiro do texto (não por nível de palavra); a caixa e o sublinhado abraçam o bloco inteiro. | MEDIDO | Documentado; destaque continua com cor própria quando o degradê está desligado. |
+| 23 | Cursor de digitação do Typewriter não foi recriado (inserir o caractere desloca o texto centralizado). | INFERIDO | Typewriter por opacidade, sem cursor. |

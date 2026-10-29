@@ -30,20 +30,20 @@ animação em Gráficos Essenciais. Menu: **Janela > Extensões > Willian - Moti
 8. **Presets**: salva fontes, tamanhos, cores, animação, margens e posição. Dá para usar, renomear,
    duplicar, excluir (com confirmação), favoritar, exportar (Área de Trabalho) e importar.
 
-### Will Letterings (combinações e letterings prontos)
+### Estilo e Will Letterings (recriados)
 
-- **Combinações > Will Letterings**: 31 combinações do projeto "Combinações prontas", com o estilo exato
-  de cada camada: fonte, tamanho, cor, brilho, degradê, bordas orgânicas, fish eye, animação e posição.
-  1. Clique na combinação; aparece uma caixa de texto por camada.
-  2. "Usar meu texto" distribui o texto do painel pelas camadas.
-  3. "Aplicar combinação no cursor" coloca as camadas, cada uma numa faixa própria acima de tudo o que
-     existe naquele trecho. Com "Ajustar o tamanho" ligado, a camada com texto maior que o original é
-     reduzida até caber na margem.
-- **Animações > Will Letterings**: os 14 letterings do pack (Typing, Flicker, Ink Bleed, Decode, Bounce…). O
-  "Aplicar no cursor" usa o texto do painel com o estilo padrão do lettering.
-- Cópia autorizada pelo Willian (licença dele do pack). Os arquivos ficam em `extension/motiontext/letterings`;
-  vão só no instalador e no repositório privado, nunca em lugar público. Para atualizar a partir de uma
-  versão nova do pack, veja `tools/motiontext/build_letterings.js`.
+- **Estilo** (aba Animações): permanência (onda, flutuar, tremer, pulso), degradê de 2 cores, brilho, relevo,
+  bordas orgânicas, luz passando, caixa/pílula atrás do texto e sublinhado. Os **looks** prontos (Prata, Ouro,
+  Prata metal, Destacado, Sublinhado, Neon, Tinta, Luz) ajustam esses controles de uma vez.
+- **13 animações novas** (categoria Will Letterings): Tracking Blur, Sanfona, Desce/Sobe/Direita/Esquerda com blur,
+  Palavra com blur, Girando, Flicker, Código (letras embaralhadas até assentar), Disperso, Brilho por letra, Onda.
+- **Combinações > Will Letterings**: 31 combinações. Cada camada é uma legenda do template do MotionText com a fonte,
+  o tamanho, a cor e o estilo da combinação de referência; a prévia do card anima cada camada com o atraso dela.
+  "Usar meu texto" distribui o texto do painel pelas camadas; camada que não cabe é reduzida até a margem.
+- Tudo foi **recriado** a partir do estudo dos letterings de referência do Willian (vídeo de prévia e controles de cada
+  MOGRT): o plugin não leva nenhum arquivo de terceiros, só o nosso template e um combos.json de 16 KB.
+- Cada fonte de combinação precisa do seu template; na 1ª vez o After Effects gera os que faltam numa abertura só
+  (cerca de 1 a 1,5 min por fonte, MEDIDO).
 
 Marcação aceita no texto e no SRT: `*palavra*` = destaque, `_palavra_` = ligação.
 

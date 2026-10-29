@@ -55,7 +55,7 @@
       <button class="ghost chip" id="autoBreak">Quebrar linhas</button>
       <button class="ghost chip" id="readSel">Ler da timeline</button>
     </div>
-    <div class="mt-stage" id="stage"><div class="mt-safe" id="safe"></div><div class="mt-stage-text" id="stageText"></div></div>
+    <div class="mt-stage" id="stage"><div class="mt-stage-inner" id="stageInner"><div class="mt-safe" id="safe"></div><div class="mt-stage-text" id="stageText"></div></div></div>
     <div class="row mt-row3">
       <div class="field"><label>Margens</label>
         <select id="margin"><option value="reels">Reels</option><option value="tiktok">TikTok</option><option value="shorts">Shorts</option><option value="none">Sem margem</option></select></div>
@@ -75,6 +75,7 @@
   <section class="card tab" id="tab-anim">
     <div class="mt-cats" id="cats"></div>
     <div class="mt-grid" id="animGrid"></div>
+
     <div class="row mt-row3">
       <div class="field"><label>Entrada <output id="inDurOut"></output></label><input type="range" id="inDur" min="0.1" max="2" step="0.05"></div>
       <div class="field"><label>Atraso por palavra <output id="staggerOut"></output></label><input type="range" id="stagger" min="0" max="0.4" step="0.01"></div>
@@ -91,7 +92,37 @@
       <div class="field"><label>Contorno <output id="strokeOut"></output></label><input type="range" id="stroke" min="0" max="20" step="1"></div>
       <div class="field"><label>Sombra <output id="shadowOut"></output></label><input type="range" id="shadow" min="0" max="100" step="5"></div>
     </div>
-    <p class="note">A prévia usa as mesmas curvas do template, desenhadas pelo navegador do painel: é aproximada (fonte e borda podem diferir um pouco). O resultado real é o Monitor de Programa.</p>
+    <h2 class="mt-sub">Estilo</h2>
+    <div class="mt-cats" id="looks"></div>
+    <div class="row mt-row3">
+      <div class="field"><label>Permanência</label><select id="hold"><option value="0">Nenhuma</option><option value="1">Onda</option><option value="2">Flutuar</option><option value="3">Tremer</option><option value="4">Pulso</option></select></div>
+      <div class="field"><label>Força <output id="holdIntOut"></output></label><input type="range" id="holdInt" min="0" max="100" step="5"></div>
+    </div>
+    <div class="row mt-row3">
+      <div class="field"><label>Degradê <output id="gradOut"></output></label><input type="range" id="grad" min="0" max="100" step="5"></div>
+      <div class="row mt-colors"><label class="swatch">De <input type="color" id="gradA"></label><label class="swatch">Para <input type="color" id="gradB"></label></div>
+    </div>
+    <div class="row mt-row3">
+      <div class="field"><label>Brilho <output id="glowOut"></output></label><input type="range" id="glow" min="0" max="100" step="5"></div>
+      <div class="field"><label>Raio do brilho <output id="glowROut"></output></label><input type="range" id="glowR" min="5" max="100" step="5"></div>
+    </div>
+    <div class="row mt-row3">
+      <div class="field"><label>Relevo <output id="bevelOut"></output></label><input type="range" id="bevel" min="0" max="100" step="5"></div>
+      <div class="field"><label>Bordas orgânicas <output id="edgesOut"></output></label><input type="range" id="edges" min="0" max="100" step="5"></div>
+    </div>
+    <div class="row mt-row3">
+      <div class="field"><label>Luz passando <output id="lightOut"></output></label><input type="range" id="light" min="0" max="100" step="5"></div>
+      <div class="field"><label>Sublinhado <output id="lineOut"></output></label><input type="range" id="line" min="0" max="30" step="1"></div>
+    </div>
+    <div class="row mt-row3">
+      <div class="field"><label>Caixa <output id="boxOut"></output></label><input type="range" id="box" min="0" max="100" step="5"></div>
+      <div class="row mt-colors"><label class="swatch">Caixa <input type="color" id="boxColor"></label><label class="swatch">Linha <input type="color" id="lineColor"></label></div>
+    </div>
+    <div class="row mt-row3">
+      <div class="field"><label>Arredondar <output id="boxRoundOut"></output></label><input type="range" id="boxRound" min="0" max="100" step="5"></div>
+      <div class="field"><label>Margem da caixa <output id="boxPadOut"></output></label><input type="range" id="boxPad" min="0" max="100" step="5"></div>
+    </div>
+    <p class="note">A prévia usa as mesmas curvas do template, desenhadas pelo navegador do painel: é aproximada (fonte, borda, brilho e relevo podem diferir). O resultado real é o Monitor de Programa.</p>
   </section>
 
   <section class="card tab hidden" id="tab-combo">
@@ -108,7 +139,7 @@
           <button class="primary" id="natApply">Aplicar combinação no cursor</button>
         </div>
       </div>
-      <p class="note">Will Letterings: combinações com o estilo original (fontes, cores, brilho, degradê, animações). Cada camada vai para uma faixa própria acima do que já existe.</p>
+      <p class="note">Will Letterings: combinações recriadas no template do MotionText (fontes, cores, brilho, degradê e animações equivalentes). Cada camada vai para uma faixa própria acima do que já existe.</p>
     </div>
     <div id="basicBox" class="hidden">
     <div class="row seg" id="comboCount">
