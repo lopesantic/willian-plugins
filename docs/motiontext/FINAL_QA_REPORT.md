@@ -35,6 +35,19 @@ sequência, deu 944 ms (100) e 1453 ms (300 de 1000, cancelado). O custo está n
 (`overwriteClip`, gravação de parâmetros). Otimizações já aplicadas: reaproveitar o item importado (~30 ms
 contra ~250 ms do `importMGT`) e gravar só os parâmetros que diferem do padrão do template (~15 ms cada).
 
+### Pack Natasha (1.6.0)
+
+| Item | Resultado |
+|---|---|
+| Captura do projeto "Combinações prontas" (aberto só para leitura, fechado sem salvar; data do arquivo inalterada) | 79 camadas, 33 grupos → 31 combinações (2 de tutorial ficaram de fora) |
+| `placeCombo` nat3 e nat24 com texto novo | OK: fontes, cores, brilho, degradê e posições iguais ao original |
+| Painel: escolher combinação, "Usar meu texto", aplicar | OK; camadas acima do que existe (V5 quando V2–V4 estavam ocupadas) |
+| Ajuste à margem de camada com texto longo | OK: escala 90% na camada "Nunca desista dos seus" |
+| Lettering avulso (Typing) pelas Animações > Natasha | OK, com cursor de digitação |
+| Miniaturas dos 14 letterings | OK (640 px) |
+
+Não testado uma a uma: as outras 29 combinações e os outros 13 letterings, que usam o mesmo caminho.
+
 ## 2. Testado isolado (Node, sem Premiere)
 
 Marcação ida e volta; hierarquia automática; quebra sem palavra sozinha na última linha; leitura de SRT

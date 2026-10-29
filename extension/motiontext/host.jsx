@@ -160,6 +160,63 @@ var WPMotion = (function () {
             missing: missing.join("|") });
     }
 
+    // Combinação pronta (pack Natasha): várias camadas, cada uma num MOGRT, empilhadas acima de tudo o que
+    // existe no intervalo (texto nunca fica escondido embaixo de B-roll). Cada camada recebe exatamente os
+    // valores capturados da combinação original (por índice do parâmetro, conferindo o nome) e o texto novo.
+    // cfg: {start, folder, layers:[{file, delay, dur, layer, pos, scale, text, params:[{i,n,k,v}]}]}
+    function placeCombo(cfgJson) {
+        var cfg = parse(cfgJson), seq = app.project.activeSequence;
+        if (!seq) return C.fail("Nenhuma sequência ativa.");
+        var L = cfg.layers, a = cfg.start, z = cfg.start, nLayers = 0;
+        for (var i = 0; i < L.length; i++) { z = Math.max(z, cfg.start + L[i].delay + L[i].dur); nLayers = Math.max(nLayers, L[i].layer + 1); }
+        var hi = 0;
+        for (var t = 0; t < seq.videoTracks.numTracks; t++) {
+            var cs = seq.videoTracks[t].clips;
+            for (var c = 0; c < cs.numItems; c++) {
+                if (secs(cs[c].start.ticks) < z - 0.0005 && secs(cs[c].end.ticks) > a + 0.0005) { hi = t; break; }
+            }
+        }
+        var need = hi + 1 + nLayers - seq.videoTracks.numTracks;
+        if (need > 0) { app.enableQE(); qe.project.getActiveSequence().addTracks(need, seq.videoTracks.numTracks, 0); }
+        var placed = 0, problems = [];
+        for (var k = 0; k < L.length; k++) {
+            var ly = L[k], tr = hi + 1 + ly.layer, s0 = cfg.start + ly.delay;
+            var clip = seq.importMGT(cfg.folder + "/" + ly.file, C.timeAt(s0).ticks, tr, 0);
+            if (!clip) { problems.push(ly.file); continue; }
+            clip.end = C.timeAt(s0 + ly.dur);
+            var props = clip.getMGTComponent().properties, ps = ly.params || [];
+            for (var p = 0; p < ps.length; p++) {
+                var pr = props[ps[p].i];
+                if (!pr || pr.displayName !== ps[p].n) pr = props.getParamForDisplayName(ps[p].n);
+                if (!pr) continue;
+                try {
+                    if (ps[p].k === "c") { var cv = ps[p].v; pr.setColorValue(cv[0] <= 1 ? 255 : cv[0], cv[1], cv[2], cv[3], true); }
+                    else if (typeof ps[p].v === "string" && ps[p].v.indexOf("textEditValue") >= 0) {
+                        pr.setValue(ps[p].v.replace(/"textEditValue":"(?:[^"\\]|\\.)*"/, '"textEditValue":"' + jsonText(ly.text) + '"'), true);
+                    } else pr.setValue(ps[p].v, true);
+                } catch (e) { problems.push(ps[p].n); }
+            }
+            if (!ps.length) {
+                // sem parâmetros capturados (animação avulsa do pack): só o texto
+                for (var q2 = 0; q2 < props.numItems; q2++) {
+                    var raw = ""; try { raw = String(props[q2].getValue()); } catch (e3) {}
+                    if (raw.indexOf("textEditValue") >= 0) { props[q2].setValue(raw.replace(/"textEditValue":"(?:[^"\\]|\\.)*"/, '"textEditValue":"' + jsonText(ly.text) + '"'), true); break; }
+                }
+            }
+            if (ly.pos) {
+                var mo = null;
+                for (var m = 0; m < clip.components.numItems; m++) if (clip.components[m].displayName === "Motion") mo = clip.components[m];
+                if (mo) {
+                    mo.properties.getParamForDisplayName("Position").setValue(ly.pos, true);
+                    mo.properties.getParamForDisplayName("Scale").setValue(ly.scale || 100, true);
+                }
+            }
+            clip.name = PREFIX + ly.text.replace(/[\r\n]+/g, " ");
+            placed++;
+        }
+        return C.out({ ok: true, placed: placed, firstTrack: hi + 1, problems: problems.join("|") });
+    }
+
     // atualiza os MotionText selecionados (ou todos) com novos parâmetros, mantendo texto e tempo
     function update(cfgJson) {
         var cfg = parse(cfgJson), seq = app.project.activeSequence;
@@ -202,5 +259,5 @@ var WPMotion = (function () {
         return C.fail("Selecione uma legenda MotionText na timeline.");
     }
 
-    return { info: C.wrap(info), place: C.wrap(place), update: C.wrap(update), readSelected: C.wrap(readSelected) };
+    return { info: C.wrap(info), place: C.wrap(place), placeCombo: C.wrap(placeCombo), update: C.wrap(update), readSelected: C.wrap(readSelected) };
 })();

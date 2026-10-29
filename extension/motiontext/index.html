@@ -95,12 +95,29 @@
   </section>
 
   <section class="card tab hidden" id="tab-combo">
+    <div class="row seg" id="comboSrc">
+      <button data-src="nat" class="ghost active">Natasha (prontas)</button><button data-src="basic" class="ghost">Básicas</button>
+    </div>
+    <div id="natBox">
+      <div class="mt-grid combo" id="natGrid"></div>
+      <div class="mt-nated hidden" id="natEditor">
+        <div class="summary" id="natTitle"></div>
+        <div class="stack" id="natLayers"></div>
+        <div class="row">
+          <button class="ghost chip" id="natMine">Usar meu texto</button>
+          <button class="primary" id="natApply">Aplicar combinação no cursor</button>
+        </div>
+      </div>
+      <p class="note">Combinações do pack Natasha Editora com o estilo original (fontes, cores, brilho, degradê, animações). Cada camada vai para uma faixa própria acima do que já existe.</p>
+    </div>
+    <div id="basicBox" class="hidden">
     <div class="row seg" id="comboCount">
       <button data-n="2" class="ghost">2 palavras</button><button data-n="3" class="ghost active">3 palavras</button><button data-n="4" class="ghost">4 palavras</button>
     </div>
     <input type="search" id="comboText" placeholder="Texto da combinação (usa o texto acima se vazio)">
     <div class="mt-grid combo" id="comboGrid"></div>
     <p class="note">Clique numa combinação para levá-la ao texto acima; depois ajuste e aplique.</p>
+    </div>
   </section>
 
   <section class="card tab hidden" id="tab-srt">

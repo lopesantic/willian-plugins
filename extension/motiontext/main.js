@@ -265,7 +265,7 @@
     }
 
     // biblioteca de animações
-    var CATS = ["Todas", "Favoritos", "Entrada", "Por palavra", "Por caractere", "Por linha", "Destaque"];
+    var CATS = ["Todas", "Favoritos", "Entrada", "Por palavra", "Por caractere", "Por linha", "Destaque", "Natasha"];
     function renderCats() {
         var box = $("cats"); box.innerHTML = "";
         CATS.forEach(function (c) {
@@ -278,6 +278,19 @@
     function renderAnimGrid() {
         var grid = $("animGrid"); grid.innerHTML = "";
         previews = previews.filter(function (p) { return p.kind !== "card"; });
+        if (S.cat === "Natasha") {
+            // letterings do pack: aplicados com o texto do painel e o estilo próprio de cada um
+            (NAT.anims || []).forEach(function (a) {
+                var card = document.createElement("div");
+                card.className = "mt-card" + (S.useNat && S.natAnim === a.file ? " active" : "");
+                card.innerHTML = '<div class="mt-view"><img class="mt-thumb" alt=""></div><div class="mt-name"></div>';
+                card.querySelector("img").src = "natasha/" + a.thumb;
+                card.querySelector(".mt-name").textContent = a.name;
+                card.addEventListener("click", function () { S.useNat = true; S.natAnim = a.file; renderAnimGrid(); save(); say("Lettering Natasha \"" + a.name + "\": \"Aplicar no cursor\" usa o texto do painel com o estilo dele.", "ok"); });
+                grid.appendChild(card);
+            });
+            return;
+        }
         ANIMS.forEach(function (a) {
             if (S.cat === "Favoritos" && S.favs.indexOf(a.id) < 0) return;
             if (S.cat !== "Todas" && S.cat !== "Favoritos" && a.cat !== S.cat) return;
@@ -293,7 +306,7 @@
                 renderAnimGrid(); save();
             });
             card.appendChild(view); card.appendChild(name); card.appendChild(star);
-            card.addEventListener("click", function () { S.anim = a.id; renderAnimGrid(); changed(true); });
+            card.addEventListener("click", function () { S.anim = a.id; S.useNat = false; renderAnimGrid(); changed(true); });
             grid.appendChild(card);
             var units = buildText(view, [{ w: "SEU", lv: 0 }, { w: "TEXTO", lv: 1 }], 0.16);
             previews.push({ kind: "card", anim: a, units: units, k: 0.16, el: view });
@@ -360,6 +373,87 @@
         });
     }
 
+    // ---------- pack Natasha (combinações e letterings prontos, cópia autorizada pelo Willian) ----------
+    var NAT = { anims: [], combos: [] }, natFolder = WP.extensionRoot() + "/motiontext/natasha", natSel = null;
+    try { NAT = JSON.parse(require("fs").readFileSync(natFolder + "/combos.json", "utf8")); } catch (e) {}
+    document.querySelectorAll("#comboSrc button").forEach(function (b) {
+        b.addEventListener("click", function () {
+            document.querySelectorAll("#comboSrc button").forEach(function (x) { x.classList.toggle("active", x === b); });
+            $("natBox").classList.toggle("hidden", b.dataset.src !== "nat");
+            $("basicBox").classList.toggle("hidden", b.dataset.src === "nat");
+            if (b.dataset.src === "nat") renderNat(); else renderCombos();
+        });
+    });
+    // miniatura: camadas na posição original, recortando a faixa central do quadro 9:16
+    function renderNat() {
+        var grid = $("natGrid"); grid.innerHTML = "";
+        NAT.combos.forEach(function (cb) {
+            var card = document.createElement("div"); card.className = "mt-card tall" + (natSel === cb ? " active" : "");
+            var view = document.createElement("div"); view.className = "mt-view mt-natview";
+            var W = 150, k = W / 1080, H = 104;
+            cb.layers.forEach(function (l) {
+                var d = document.createElement("div"); d.className = "mt-natlayer";
+                d.textContent = l.text.replace(/\r/g, "\n");
+                var f = byPs[l.font];
+                d.style.fontFamily = "'" + (f ? (f.legacy || f.family) : l.font) + "'";
+                d.style.fontWeight = f && /bold/i.test(f.legacyStyle || "") ? "700" : "400";
+                d.style.fontSize = Math.max(5, l.size * k * (l.scale || 100) / 100) + "px";
+                d.style.color = l.color;
+                d.style.left = (l.pos[0] * 100) + "%";
+                d.style.top = (H / 2 + (l.pos[1] - 0.5) * 1920 * k) + "px";
+                view.appendChild(d);
+            });
+            var name = document.createElement("div"); name.className = "mt-name"; name.textContent = cb.layers.length + " camadas";
+            card.appendChild(view); card.appendChild(name);
+            card.addEventListener("click", function () { natSel = cb; renderNat(); openNatEditor(); });
+            grid.appendChild(card);
+        });
+    }
+    function openNatEditor() {
+        var ed = $("natEditor"), box = $("natLayers"); ed.classList.remove("hidden");
+        $("natTitle").textContent = natSel.layers.map(function (l) { return l.anim; }).join(" + ");
+        box.innerHTML = "";
+        natSel.layers.forEach(function (l, i) {
+            var inp = document.createElement("input"); inp.type = "search"; inp.value = l.text.replace(/\r/g, " ");
+            inp.dataset.i = i; inp.title = l.font + " · " + l.anim;
+            box.appendChild(inp);
+        });
+        ed.scrollIntoView({ block: "nearest" });
+    }
+    // distribui o texto do painel pelas camadas, na proporção de palavras da combinação original
+    $("natMine").addEventListener("click", function () {
+        if (!natSel) return;
+        var mine = E.plain(textEl.value).split(/\s+/).filter(Boolean), counts = natSel.layers.map(function (l) { return Math.max(1, l.text.split(/\s+/).filter(Boolean).length); });
+        var total = counts.reduce(function (s, x) { return s + x; }, 0), pos = 0;
+        $("natLayers").querySelectorAll("input").forEach(function (inp, i) {
+            var n = i === counts.length - 1 ? mine.length - pos : Math.max(1, Math.round(mine.length * counts[i] / total));
+            inp.value = mine.slice(pos, pos + n).join(" "); pos += n;
+        });
+    });
+    function placeNat(layers) {
+        return refreshSeq().then(function () {
+            var cfg = { start: E.snap(seq.playhead, seq.fps), folder: natFolder, layers: layers };
+            return WP.call("WPMotion.placeCombo", [JSON.stringify(cfg)]);
+        }).then(function (d) {
+            say(d.placed + " camada(s) a partir da V" + (d.firstTrack + 1) + (d.problems ? " · ajustes que falharam: " + d.problems : "") + ". Confira no Monitor de Programa.", d.problems ? "error" : "ok");
+        });
+    }
+    $("natApply").addEventListener("click", function () {
+        if (!natSel) return;
+        var btn = this; btn.disabled = true;
+        var g = guide(), maxW = seq.w - g.left - g.right;
+        var layers = natSel.layers.map(function (l, i) {
+            var c = JSON.parse(JSON.stringify(l)); c.text = $("natLayers").querySelectorAll("input")[i].value || l.text;
+            // texto mais longo que o original: reduz a escala da camada até caber na margem (medido com a fonte real)
+            var f = byPs[c.font], fam = f ? (f.legacy || f.family) : c.font;
+            var w = Math.max.apply(null, c.text.split(/\r|\n/).map(function (ln) { return E.measure(ln, { family: fam, size: c.size, tracking: 0 }); }));
+            var sc = (c.scale || 100) / 100;
+            if (S.autoFit && w * sc > maxW) c.scale = Math.floor(maxW / w * 100);
+            return c;
+        });
+        placeNat(layers).catch(function (e) { say(e.message, "error"); }).then(function () { btn.disabled = false; });
+    });
+
     // ---------- controles de animação ----------
     var UNITS = { inDur: " s", stagger: " s", intensity: "%", outDur: " s", dur: " s", stroke: "", shadow: "%" };
     function showOut(k) { var o = $(k + "Out"); if (o && UNITS[k] !== undefined) o.textContent = S[k] + UNITS[k]; }
@@ -378,7 +472,7 @@
         b.addEventListener("click", function () {
             document.querySelectorAll(".mt-tabs button").forEach(function (x) { x.classList.toggle("active", x === b); });
             document.querySelectorAll(".tab").forEach(function (t) { t.classList.toggle("hidden", t.id !== "tab-" + b.dataset.tab); });
-            if (b.dataset.tab === "combo") renderCombos();
+            if (b.dataset.tab === "combo") { if ($("natBox").classList.contains("hidden")) renderCombos(); else renderNat(); }
         });
     });
 
@@ -433,7 +527,12 @@
 
     $("apply").addEventListener("click", function () {
         if (!words.length) { say("Escreva o texto primeiro.", "error"); return; }
-        var btn = this; btn.disabled = true;
+        var btn = this; btn.disabled = true;        if (S.useNat && S.natAnim) {
+            var txt = words.map(function (o, i) { return o.w + (i < words.length - 1 ? (o.br ? "\r" : " ") : ""); }).join("");
+            placeNat([{ file: S.natAnim, delay: 0, dur: +S.dur, layer: 0, text: txt, params: [] }])
+                .catch(function (e) { say(e.message, "error"); }).then(function () { btn.disabled = false; });
+            return;
+        }
         refreshSeq().then(ensureTemplate).then(function (mogrt) {
             var start = E.snap(seq.playhead, seq.fps), end = E.snap(start + (+S.dur), seq.fps);
             var cfg = { mogrt: mogrt.replace(/\\/g, "/"), items: [itemFor(words, start, end)], params: onlyChanged(params(1)) };

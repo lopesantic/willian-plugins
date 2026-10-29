@@ -30,6 +30,21 @@ animação em Gráficos Essenciais. Menu: **Janela > Extensões > Willian - Moti
 8. **Presets**: salva fontes, tamanhos, cores, animação, margens e posição. Dá para usar, renomear,
    duplicar, excluir (com confirmação), favoritar, exportar (Área de Trabalho) e importar.
 
+### Pack Natasha Editora (combinações e letterings prontos)
+
+- **Combinações > Natasha (prontas)**: 31 combinações do projeto "Combinações prontas", com o estilo exato
+  de cada camada: fonte, tamanho, cor, brilho, degradê, bordas orgânicas, fish eye, animação e posição.
+  1. Clique na combinação; aparece uma caixa de texto por camada.
+  2. "Usar meu texto" distribui o texto do painel pelas camadas.
+  3. "Aplicar combinação no cursor" coloca as camadas, cada uma numa faixa própria acima de tudo o que
+     existe naquele trecho. Com "Ajustar o tamanho" ligado, a camada com texto maior que o original é
+     reduzida até caber na margem.
+- **Animações > Natasha**: os 14 letterings do pack (Typing, Flicker, Ink Bleed, Decode, Bounce…). O
+  "Aplicar no cursor" usa o texto do painel com o estilo padrão do lettering.
+- Cópia autorizada pelo Willian (licença dele do pack). Os arquivos ficam em `extension/motiontext/natasha`;
+  vão só no instalador e no repositório privado, nunca em lugar público. Para atualizar a partir de uma
+  versão nova do pack, veja `tools/motiontext/build_natasha.js`.
+
 Marcação aceita no texto e no SRT: `*palavra*` = destaque, `_palavra_` = ligação.
 
 ## Primeira vez com um par de fontes
