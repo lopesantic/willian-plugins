@@ -107,30 +107,121 @@
 
   // ---------- força de ataque ----------
 
-  // Fluxo espectral (log-magnitude, só subidas). Devolve a curva geral e a dos graves (< 150 Hz).
+  // Fluxo espectral (log-magnitude, só subidas). Devolve a curva geral e as de três faixas: graves (< 150 Hz, bumbo),
+  // médios (150 Hz a 3 kHz, caixa/palma/voz) e agudos (> 5 kHz, chimbal/pratos). "low" fica cru (usado no tempo forte).
   function onsetStrength(x, sr) {
     var frames = Math.max(0, Math.floor((x.length - N) / HOP) + 1);
     var win = new Float32Array(N);
     for (var i = 0; i < N; i++) win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / N);
     var half = N / 2, lowBins = Math.max(2, Math.round(150 * N / sr));
+    var midTop = Math.round(3000 * N / sr), highFrom = Math.min(half - 1, Math.round(5000 * N / sr));
     var prev = new Float32Array(half), cur = new Float32Array(half);
-    var all = new Float32Array(frames), low = new Float32Array(frames);
+    var all = new Float32Array(frames), low = new Float32Array(frames), mid = new Float32Array(frames), high = new Float32Array(frames);
     var re = new Float64Array(N), im = new Float64Array(N);
     for (var f = 0; f < frames; f++) {
       var off = f * HOP;
       for (i = 0; i < N; i++) { re[i] = x[off + i] * win[i]; im[i] = 0; }
       fft(re, im);
-      var sa = 0, sl = 0;
+      var sa = 0, sl = 0, sm = 0, sh = 0;
       for (var k = 1; k < half; k++) {
         cur[k] = Math.log(1 + 100 * Math.sqrt(re[k] * re[k] + im[k] * im[k]));
         var d = cur[k] - prev[k];
-        if (d > 0 && f > 0) { sa += d; if (k < lowBins) sl += d; }
+        if (d > 0 && f > 0) {
+          sa += d;
+          if (k < lowBins) sl += d; else if (k <= midTop) sm += d; else if (k >= highFrom) sh += d;
+        }
       }
-      all[f] = sa; low[f] = sl;
+      all[f] = sa; low[f] = sl; mid[f] = sm; high[f] = sh;
       var t = prev; prev = cur; cur = t;
     }
-    return { all: normalize(detrend(all)), low: low };
+    return { all: normalize(detrend(all)), low: low,
+             bands: { low: normalize(detrend(low.slice())), mid: normalize(detrend(mid)), high: normalize(detrend(high)) } };
   }
+
+  // ---------- ataques de uma faixa (bumbo, caixa, chimbal) ----------
+  // Pico local acima do entorno: valor > média local + k x desvio local (janela de 0,5 s) e acima de um piso absoluto,
+  // com distância mínima entre ataques. sens: 1 (só os fortes) a 10 (pega quase tudo).
+  function pickOnsets(env, frameRate, sens, minGapS) {
+    var k = 2.6 - (Math.max(1, Math.min(10, sens)) - 1) * 0.22, floor = 1.6 - (Math.max(1, Math.min(10, sens)) - 1) * 0.12;
+    var w = Math.max(3, Math.round(0.25 * frameRate)), gap = Math.max(1, Math.round((minGapS || 0.09) * frameRate)), out = [], last = -1e9;
+    var pre = new Float64Array(env.length + 1), pre2 = new Float64Array(env.length + 1), i;
+    for (i = 0; i < env.length; i++) { pre[i + 1] = pre[i] + env[i]; pre2[i + 1] = pre2[i] + env[i] * env[i]; }
+    for (i = 1; i < env.length - 1; i++) {
+      var v = env[i];
+      if (v < floor || v < env[i - 1] || v < env[i + 1]) continue;
+      var a = Math.max(0, i - w), b = Math.min(env.length, i + w + 1), n = b - a;
+      var mean = (pre[b] - pre[a]) / n, sd = Math.sqrt(Math.max(0, (pre2[b] - pre2[a]) / n - mean * mean));
+      if (v < mean + k * sd) continue;
+      if (i - last < gap) { if (out.length && v > out[out.length - 1].s) { out[out.length - 1] = { f: i, s: v }; last = i; } continue; }
+      out.push({ f: i, s: v }); last = i;
+    }
+    return out;
+  }
+
+  // ---------- trechos de tempo ----------
+  // BPM local em janelas de 8 s (passo 2 s), na mesma oitava (70-180); começa trecho novo quando o tempo muda mais de
+  // 4% em duas janelas seguidas. Trecho com menos de 6 s junta com o vizinho. Devolve [{a, b, period}] em quadros.
+  // autocorrelação da curva num atraso (fracionário: interpola os dois vizinhos)
+  function acAt(env, lag) {
+    var l0 = Math.floor(lag), fr = lag - l0, s0 = 0, s1 = 0;
+    for (var i = l0 + 1; i < env.length; i++) { s0 += env[i] * env[i - l0]; s1 += env[i] * env[i - l0 - 1]; }
+    return (s0 * (1 - fr) + s1 * fr) / Math.max(1, env.length - l0);
+  }
+
+  function tempoSections(env, frameRate) {
+    var W = Math.round(10 * frameRate), H = Math.round(2 * frameRate), est = [];
+    function octave(p) { var bpm = 60 * frameRate / p; while (bpm < 70) { bpm *= 2; p /= 2; } while (bpm >= 180) { bpm /= 2; p *= 2; } return p; }
+    var P = octave(estimatePeriod(env, frameRate));
+    if (env.length < W * 1.5) return [{ a: 0, b: env.length, period: P }];
+    // Numa janela o tempo só "muda" se o tempo geral quase não aparece nela (autocorrelação no período geral, ou na
+    // metade/dobro dele, abaixo de 65% da do melhor período local). Janela curta erra muito sozinha (MEDIDO: "10 Anos"
+    // saía com 14 trechos de 88 a 153 BPM).
+    for (var s = 0; s + W <= env.length; s += H) {
+      var seg = env.subarray(s, s + W), p = octave(estimatePeriod(seg, frameRate));
+      var gl = Math.max(acAt(seg, P), P / 2 >= 2 ? acAt(seg, P / 2) : 0, P * 2 < W / 2 ? acAt(seg, P * 2) : 0), lo = acAt(seg, p);
+      est.push({ s: s, p: (lo <= 0 || gl >= 0.65 * lo) ? P : p });
+    }
+    // mediana de 5 contra erros isolados
+    var sm = est.map(function (e, i) {
+      var v = [];
+      for (var q = Math.max(0, i - 2); q <= Math.min(est.length - 1, i + 2); q++) v.push(est[q].p);
+      return { s: e.s, p: median(v) };
+    });
+    // trecho novo só quando o tempo fica diferente (> 5%) por 3 janelas seguidas (6 s)
+    var secs = [], cur = { a: 0, ps: [sm[0].p] };
+    for (var i = 1; i < sm.length; i++) {
+      var ref = median(cur.ps), run = 0;
+      for (var q2 = i; q2 < Math.min(sm.length, i + 3); q2++) if (Math.abs(sm[q2].p - ref) / ref > 0.05) run++;
+      if (run === 3) { cur.b = sm[i].s + Math.round(W / 2); secs.push(cur); cur = { a: cur.b, ps: [] }; }
+      cur.ps.push(sm[i].p);
+    }
+    cur.b = env.length; secs.push(cur);
+    secs.forEach(function (c) { c.period = median(c.ps); });
+    var minLen = Math.round(6 * frameRate);
+    for (var j = secs.length - 1; j >= 0 && secs.length > 1; j--) {
+      if (secs[j].b - secs[j].a >= minLen) continue;
+      var into = j > 0 ? j - 1 : j + 1;
+      secs[into].a = Math.min(secs[into].a, secs[j].a); secs[into].b = Math.max(secs[into].b, secs[j].b);
+      secs.splice(j, 1);
+    }
+    // vizinhos que ficaram com o mesmo tempo viram um trecho só
+    for (j = secs.length - 1; j > 0; j--) {
+      if (Math.abs(secs[j].period - secs[j - 1].period) / secs[j - 1].period <= 0.04) { secs[j - 1].b = secs[j].b; secs.splice(j, 1); }
+    }
+    // ponto de virada: perto do estimado (±meia janela), onde o tempo de antes casa melhor nos 4 s anteriores e o de
+    // depois nos 4 s seguintes (a janela de 10 s errava a virada em ~1 s: MEDIDO na bateria sintética)
+    var span = Math.round(4 * frameRate), stepF = Math.max(1, Math.round(frameRate / 20));
+    for (j = 1; j < secs.length; j++) {
+      var bestC = secs[j].a, bestS = -Infinity;
+      for (var c = Math.max(secs[j - 1].a + span, secs[j].a - Math.round(W / 2)); c <= Math.min(secs[j].b - span, secs[j].a + Math.round(W / 2)); c += stepF) {
+        var sc = acAt(env.subarray(c - span, c), secs[j - 1].period) + acAt(env.subarray(c, c + span), secs[j].period);
+        if (sc > bestS) { bestS = sc; bestC = c; }
+      }
+      secs[j - 1].b = bestC; secs[j].a = bestC;
+    }
+    return secs.map(function (c) { return { a: c.a, b: c.b, period: c.period }; });
+  }
+  function median(a) { var v = a.slice().sort(function (x, y) { return x - y; }); return v.length ? v[Math.floor(v.length / 2)] : 0; }
 
   // Tira a média local (~0,4 s) e corta o negativo: sobra só o que se destaca do entorno.
   function detrend(env) {
@@ -238,37 +329,91 @@
     return 60 / (num / den);
   }
 
-  function analyze(path) {
-    var audio = readMono(path), sr = audio.sampleRate, x = audio.samples;
-    var env = onsetStrength(x, sr), frameRate = sr / HOP;
-    var period = estimatePeriod(env.all, frameRate);
-    var bpm = 60 * frameRate / period;
-    while (bpm < 70) { bpm *= 2; period /= 2; }
-    while (bpm >= 180) { bpm /= 2; period *= 2; }
+  function frameTime(x, sr, f) { return Math.round(refine(x, sr, (f * HOP + N / 2) / sr) * 1000) / 1000; }
 
-    var frames = trimWeak(trackBeats(env.all, period), env.all);
-    // instante do quadro = centro da janela da FFT
-    var beats = frames.map(function (f) {
-      return Math.round(refine(x, sr, (f * HOP + N / 2) / sr) * 1000) / 1000;
-    });
-
-    // tempo forte: a fase (de 4) cujas batidas têm mais ataque nos graves
+  // tempo forte: a fase (de 4) cujas batidas têm mais ataque nos graves
+  function downbeatOf(frames, low) {
     var phase = 0, bestLow = -1;
     for (var p = 0; p < 4; p++) {
       var sum = 0, cnt = 0;
-      for (var i = p; i < frames.length; i += 4) { sum += localMax(env.low, frames[i], 2); cnt++; }
+      for (var i = p; i < frames.length; i += 4) { sum += localMax(low, frames[i], 2); cnt++; }
       if (cnt && sum / cnt > bestLow) { bestLow = sum / cnt; phase = p; }
     }
+    return phase;
+  }
 
+  // Resultado: trechos de tempo (cada um com as batidas e o tempo forte dele) e as curvas de ataque das faixas, para o
+  // painel achar bumbo/caixa/chimbal com a sensibilidade escolhida sem analisar de novo (onsets()).
+  function analyze(path) {
+    var audio = readMono(path), sr = audio.sampleRate, x = audio.samples;
+    var env = onsetStrength(x, sr), frameRate = sr / HOP;
+    var sections = tempoSections(env.all, frameRate).map(function (sc) {
+      var seg = env.all.subarray(sc.a, sc.b);
+      var frames = trimWeak(trackBeats(seg, sc.period), seg).map(function (f) { return f + sc.a; });
+      var beats = frames.map(function (f) { return frameTime(x, sr, f); });
+      return {
+        start: Math.round(sc.a / frameRate * 1000) / 1000, end: Math.round(sc.b / frameRate * 1000) / 1000,
+        bpm: Math.round((beats.length > 3 ? fitBpm(beats) : 60 * frameRate / sc.period) * 10) / 10,
+        beats: beats, downbeat: downbeatOf(frames, env.low)
+      };
+    }).filter(function (s) { return s.beats.length >= 2; });
+    var all = [];
+    sections.forEach(function (s) { all = all.concat(s.beats); });
     return {
-      bpm: Math.round(fitBpm(beats) * 10) / 10,
-      beats: beats,
-      downbeat: phase,
-      duration: x.length / sr
+      bpm: sections.length ? sections.reduce(function (m, s) { return (s.end - s.start) > (m.end - m.start) ? s : m; }).bpm : 0,
+      beats: all,
+      downbeat: sections.length ? sections[0].downbeat : 0,
+      sections: sections,
+      duration: x.length / sr,
+      curves: env.bands, frameRate: frameRate, x: x, sr: sr
     };
   }
 
-  var api = { analyze: analyze };
+  // Ataques de uma faixa ("low", "mid", "high") ou "impact" (os mais fortes das três somadas), em segundos.
+  function onsets(res, band, sens) {
+    if (band === "impact") {
+      var c = res.curves, n = c.low.length, sum = new Float32Array(n);
+      for (var i = 0; i < n; i++) sum[i] = c.low[i] * 1.2 + c.mid[i] + c.high[i] * 0.6;
+      var hits = pickOnsets(normalize(sum), res.frameRate, Math.max(1, sens - 4), 0.35);
+      var vals = hits.map(function (h) { return h.s; }).sort(function (a, b) { return a - b; });
+      var cut = vals[Math.floor(vals.length * 0.7)] || 0;   // só os 30% mais fortes
+      return hits.filter(function (h) { return h.s >= cut; }).map(function (h) { return frameTime(res.x, res.sr, h.f); });
+    }
+    var gap = band === "high" ? 0.06 : 0.09, cv = res.curves, others = ["low", "mid", "high"].filter(function (b) { return b !== band; });
+    // a faixa precisa ser a dominante (ou quase) naquele instante: o ataque do bumbo vaza para os médios, o do chimbal
+    // e o da caixa para os graves (MEDIDO na bateria sintética: 88 e 39 marcações a mais). Bumbo + caixa juntos contam nos dois.
+    function dominant(f) {
+      var v = cv[band][f], m = 0;
+      others.forEach(function (o) { for (var d = -1; d <= 1; d++) { var u = cv[o][f + d] || 0; if (u > m) m = u; } });
+      return v >= 0.7 * m;
+    }
+    var hits = pickOnsets(cv[band], res.frameRate, Math.min(10, sens + 3), gap).filter(function (h) { return dominant(h.f); });
+    // espaço mínimo de 40% da batida do trecho (o baixo e as notas soltas viravam "bumbo": MEDIDO 4,3 por segundo
+    // numa música de 1,8 batida por segundo) e só a fração mais forte, conforme a sensibilidade (1: ~1/4 ... 10: todos)
+    function periodAt(f) {
+      var t = f / res.frameRate;
+      for (var i = 0; i < res.sections.length; i++) if (t < res.sections[i].end || i === res.sections.length - 1) return 60 / (res.sections[i].bpm || 120);
+      return 0.5;
+    }
+    hits.sort(function (a, b) { return b.s - a.s; });
+    var kept = [];
+    hits.forEach(function (h) {
+      var g2 = 0.4 * periodAt(h.f) * res.frameRate;
+      for (var i = 0; i < kept.length; i++) if (Math.abs(kept[i].f - h.f) < g2) return;
+      kept.push(h);
+    });
+    // limiar de força no quantil da sensibilidade: ataques de força igual passam todos juntos (cortar por quantidade
+    // descartava batidas reais iguais: MEDIDO 27 de 40 bumbos na bateria sintética)
+    var frac = 0.2 + 0.8 * (Math.max(1, Math.min(10, sens)) - 1) / 9;
+    var cut = kept.length ? kept[Math.min(kept.length - 1, Math.max(0, Math.round(kept.length * frac) - 1))].s * 0.999 : 0;
+    kept = kept.filter(function (h) { return h.s >= cut; }).sort(function (a, b) { return a.f - b.f; });
+    return kept.map(function (h) {
+      // agudo: o quadro da FFT já é preciso; graves e médios encaixam na subida de energia
+      return band === "high" ? Math.round((h.f * HOP + N / 2) / res.sr * 1000) / 1000 : frameTime(res.x, res.sr, h.f);
+    });
+  }
+
+  var api = { analyze: analyze, onsets: onsets };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.WPBeats = api;
 })(this);

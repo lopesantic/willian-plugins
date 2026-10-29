@@ -22,46 +22,48 @@
     <section class="card">
       <div class="bpm-row">
         <span class="bpm" id="bpm">—</span>
-        <button id="half" class="ghost" title="Metade do tempo">÷2</button>
-        <button id="double" class="ghost" title="Dobro do tempo">×2</button>
+        <button id="half" class="ghost" title="Metade do tempo (nos trechos ligados)">÷2</button>
+        <button id="double" class="ghost" title="Dobro do tempo (nos trechos ligados)">×2</button>
       </div>
-      <canvas id="ruler" height="40"></canvas>
+      <canvas id="ruler" height="90"></canvas>
       <div class="summary" id="summary"></div>
     </section>
 
+    <!-- trechos com tempos diferentes: liga/desliga cada um -->
     <section class="card">
-      <h2>Marcadores</h2>
-      <label class="field">Densidade
-        <select id="density">
-          <option value="16">1 a cada 16 batidas</option>
-          <option value="8">1 a cada 8 batidas</option>
-          <option value="4">1 a cada 4 batidas (compasso)</option>
-          <option value="2">1 a cada 2 batidas</option>
-          <option value="1">Toda batida</option>
-          <option value="0.5">2 por batida</option>
-        </select>
+      <h2>Trechos de tempo</h2>
+      <div class="bm-sections" id="sections"></div>
+      <p class="note" id="sectionsNote"></p>
+    </section>
+
+    <!-- um tipo de batida por linha, cada um com a sua cor -->
+    <section class="card">
+      <h2>Tipos de batida</h2>
+      <div class="bm-types" id="types"></div>
+      <div class="row mt-row3">
+        <label class="field">Batidas do tempo
+          <select id="density">
+            <option value="16">1 a cada 16 batidas</option>
+            <option value="8">1 a cada 8 batidas</option>
+            <option value="4">1 a cada 4 batidas (compasso)</option>
+            <option value="2">1 a cada 2 batidas</option>
+            <option value="1">Toda batida</option>
+            <option value="0.5">2 por batida</option>
+          </select>
+        </label>
+        <label class="field">Começar em
+          <select id="phase">
+            <option value="0">Tempo forte (automático)</option>
+            <option value="1">Tempo forte + 1 batida</option>
+            <option value="2">Tempo forte + 2 batidas</option>
+            <option value="3">Tempo forte + 3 batidas</option>
+          </select>
+        </label>
+      </div>
+      <label class="field">Sensibilidade de bumbo, caixa e chimbal <output id="sensOut"></output>
+        <input type="range" id="sens" min="1" max="10" step="1">
       </label>
-      <label class="field">Começar em
-        <select id="phase">
-          <option value="0">Tempo forte (automático)</option>
-          <option value="1">Tempo forte + 1 batida</option>
-          <option value="2">Tempo forte + 2 batidas</option>
-          <option value="3">Tempo forte + 3 batidas</option>
-        </select>
-      </label>
-      <label class="field">Cor do marcador
-        <select id="color">
-          <option value="0">Verde</option>
-          <option value="1">Vermelho</option>
-          <option value="2">Roxo</option>
-          <option value="3">Laranja</option>
-          <option value="4">Amarelo</option>
-          <option value="5">Branco</option>
-          <option value="6">Azul</option>
-          <option value="7">Ciano</option>
-        </select>
-      </label>
-      <label class="check"><input type="checkbox" id="replace" checked> Substituir os marcadores do BeatMarker desta cor</label>
+      <label class="check"><input type="checkbox" id="replace" checked> Substituir os marcadores do BeatMarker das cores usadas</label>
     </section>
 
     <button id="create" class="primary">Criar marcadores</button>

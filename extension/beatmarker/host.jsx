@@ -50,6 +50,39 @@ var WPBeatMarker = (function () {
         return C.out({ ok: true, created: made, removed: removed });
     }
 
+    // groupsJson: '[{"times":[s, ...], "color":0-7, "name":"Graves (bumbo)"}, ...]': um grupo por tipo de batida, cada
+    // um com a sua cor; o nome do grupo vai no nome do marcador (aparece no painel Marcadores). replace: apaga antes os
+    // marcadores do BeatMarker das cores usadas. Dois grupos no mesmo quadro: cada um ganha o seu marcador.
+    function createGroups(groupsJson, replace) {
+        var seq = app.project.activeSequence;
+        if (!seq) return C.fail("Nenhuma sequência ativa.");
+        var groups = eval("(" + groupsJson + ")"), removed = 0, made = 0, counts = [];
+        if (!groups || !groups.length) return C.fail("Escolha pelo menos um tipo de batida.");
+        if (replace) {
+            var done = {};
+            for (var g = 0; g < groups.length; g++) {
+                var col = Number(groups[g].color);
+                if (!done[col]) { removed += removeList(seq, ownMarkers(seq, col)); done[col] = true; }
+            }
+        }
+        var fd = C.secs(seq.timebase), end = C.secs(seq.end);
+        for (var k = 0; k < groups.length; k++) {
+            var gr = groups[k], seen = {}, n = 0;
+            for (var i = 0; i < gr.times.length; i++) {
+                var frame = Math.round(gr.times[i] / fd);
+                if (seen[frame] || frame * fd > end) continue;
+                seen[frame] = true;
+                var m = seq.markers.createMarker(frame * fd);
+                m.name = gr.name || "";
+                m.comments = TAG;
+                m.setColorByIndex(Number(gr.color));
+                n++;
+            }
+            made += n; counts.push(n);
+        }
+        return C.out({ ok: true, created: made, removed: removed, counts: counts.join(",") });
+    }
+
     function removeMarkers() {
         var seq = app.project.activeSequence;
         if (!seq) return C.fail("Nenhuma sequência ativa.");
@@ -60,6 +93,7 @@ var WPBeatMarker = (function () {
         tracks: C.tracks,
         exportAudio: C.exportAudio,
         createMarkers: C.wrap(createMarkers),
+        createGroups: C.wrap(createGroups),
         removeMarkers: C.wrap(removeMarkers)
     };
 })();
