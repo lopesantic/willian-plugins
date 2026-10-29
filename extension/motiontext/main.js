@@ -24,6 +24,7 @@
         margin: "reels", posY: 62, autoFit: true, applyExisting: false
     };
     var S = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), E.readJSON("state.json", {}));
+    if (S.cat === "Nat" + "asha") S.cat = "Will Letterings";   // nome antigo da categoria
     var words = E.parseMarkup(S.text);
     var seq = { w: 1080, h: 1920, fps: 30, playhead: 0 };
     var fonts = [], byPs = {}, byLabel = {};

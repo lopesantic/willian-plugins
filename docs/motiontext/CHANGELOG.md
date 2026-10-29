@@ -1,5 +1,8 @@
 # MotionText — changelog
 
+## 0.2.1 (Willian Plugins 1.6.1) — 28/10/2026
+- Combinações e letterings prontos renomeados para **Will Letterings**.
+
 ## 0.2.0 (Willian Plugins 1.6.0) — 28/10/2026
 - Will Letterings: 31 combinações prontas com o estilo exato de cada camada (capturado do projeto
   "Combinações prontas") e os 14 letterings do pack na categoria "Will Letterings" das Animações.
