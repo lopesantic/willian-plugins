@@ -363,3 +363,6 @@ body > .status { position: sticky; bottom: 6px; z-index: 20; box-shadow: 0 6px 1
 .mt-fp-note { font-size: 10.5px; color: var(--faint); padding: 6px 8px; white-space: normal; }
 .mt-projfonts { margin: 4px 0 0; }
 .mt-projfonts b { color: #fff; font-weight: 600; }
+
+.mt-font .fontvar { width: 100%; margin-top: 4px; }
+.mt-font .fontvar:disabled { opacity: .5; }

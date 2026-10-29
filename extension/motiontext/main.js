@@ -60,9 +60,30 @@
         renderAll();
     }
 
+    // variações da mesma família em ordem de peso (Thin ... Black), cada itálico logo depois do seu peso
+    var WEIGHTS = [[/thin|hairline/, 100], [/extra ?light|ultra ?light/, 200], [/light/, 300], [/medium/, 500], [/semi ?bold|demi ?bold/, 600],
+        [/extra ?bold|ultra ?bold|heavy/, 800], [/black|ultra/, 900], [/bold/, 700]];
+    function weightOf(style) {
+        var s = String(style).toLowerCase();
+        for (var i = 0; i < WEIGHTS.length; i++) if (WEIGHTS[i][0].test(s)) return WEIGHTS[i][1];
+        return 400;
+    }
+    function variants(f) {
+        return fonts.filter(function (o) { return o.family === f.family; }).sort(function (a, b) {
+            return weightOf(a.style) - weightOf(b.style) || (/italic|oblique/i.test(a.style) ? 1 : 0) - (/italic|oblique/i.test(b.style) ? 1 : 0) || a.style.localeCompare(b.style);
+        });
+    }
     function renderFonts() {
         document.querySelectorAll(".mt-font").forEach(function (box) {
             var lv = +box.dataset.lv, fo = S.fonts[lv], f = byPs[fo.ps];
+            var vs = box.querySelector(".fontvar");
+            if (vs && f && document.activeElement !== vs) {
+                var list = variants(f);
+                vs.innerHTML = "";
+                list.forEach(function (o) { var op = document.createElement("option"); op.value = o.postscript; op.textContent = o.style; vs.appendChild(op); });
+                vs.value = f.postscript; vs.disabled = list.length < 2;
+                vs.title = list.length < 2 ? "Esta fonte só tem uma variação instalada" : list.length + " variações de " + f.family;
+            }
             var pick = box.querySelector(".fontpick");
             if (document.activeElement !== pick) pick.value = f ? label(f) : fo.ps;
             pick.style.fontFamily = "'" + cssFamily(fo.ps) + "'";
@@ -79,6 +100,11 @@
     document.querySelectorAll(".mt-font").forEach(function (box) {
         var lv = +box.dataset.lv, pick = box.querySelector(".fontpick");
         wirePicker(pick, lv);
+        box.querySelector(".fontvar").addEventListener("change", function () {
+            var f = byPs[this.value]; if (!f) return;
+            S.fonts[lv].ps = f.postscript; changed(true);
+            say("Variação " + (lv ? "de destaque" : "padrão") + ": " + label(f) + ".", "ok");
+        });
         box.querySelectorAll("input[type=range]").forEach(function (r) {
             r.addEventListener("input", function () { S.fonts[lv][r.dataset.k] = +r.value; changed(true); });
         });

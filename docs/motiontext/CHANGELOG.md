@@ -4,7 +4,8 @@
 - Pacote renomeado para **Sharp Frame** e um painel só (hub com abas por categoria); os painéis separados saíram do menu.
 - Template único por tamanho de quadro (v4): a fonte vai no fim do texto (`§FontePadrão|FonteDestaque`), então trocar de
   fonte não abre mais o After Effects (antes: 70–90 s por par de fontes).
-- Seletor de fontes próprio: busca por parte do nome, Enter escolhe, fontes do projeto do cliente no topo (lidas do .prproj
+- Seletor de fontes próprio: busca por parte do nome, Enter escolhe, variações da mesma família (Thin a Black, itálicos),
+  fontes do projeto do cliente no topo (lidas do .prproj
   salvo e da sequência aberta) e aviso das que o projeto usa mas não estão instaladas.
 - Aba Seleção: anima os graphics selecionados no tempo da timeline, inclusive texto nativo do Premiere (lido do projeto
   exportado, o ExtendScript não lê esse texto) e MOGRT de terceiros (ficam desligados, o MotionText entra acima).
