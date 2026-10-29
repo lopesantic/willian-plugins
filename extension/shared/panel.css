@@ -386,3 +386,12 @@ body > .status { position: sticky; bottom: 6px; z-index: 20; box-shadow: 0 6px 1
 .bm-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
 .bm-row.off .bm-name, .bm-row.off .bm-count { opacity: .45; }
 canvas#ruler { width: 100%; height: 90px; }
+
+/* MotionText · interface reorganizada */
+.mt-toolbar { flex-wrap: wrap; gap: 6px; }
+.mt-mini { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); margin: 10px 0 4px; font-weight: 600; }
+.mt-grid.mt-grid-sm { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); max-height: 236px; overflow-y: auto; padding-right: 2px; }
+.mt-grid.mt-grid-sm .mt-card .mt-view { height: 46px; }
+.mt-grid.mt-grid-sm .mt-card .mt-name { font-size: 10px; }
+#fontsBox > summary { cursor: pointer; }
+#fontsBox:not([open]) { padding-bottom: 6px; }

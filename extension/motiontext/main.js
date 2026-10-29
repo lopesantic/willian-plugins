@@ -56,7 +56,6 @@
             var alt = i ? "Arial-Black" : "ArialMT";
             fo.ps = byPs[alt] ? alt : fonts[0].postscript;
         });
-        $("fontsTag").textContent = fonts.length + " fontes";
         renderAll();
     }
 
@@ -667,17 +666,15 @@
         };
         if (l.grad) { mt["Degradê (%)"] = 100; mt["Degradê cor 1"] = rgb(l.grad[0]); mt["Degradê cor 2"] = rgb(l.grad[1]); }
         if (l.glow) { mt["Brilho"] = 55; mt["Raio do brilho"] = Math.min(100, l.glow); }
-        return { font: font, mogrt: E.templatePath(E.templateName(font, font, seq.w, seq.h)).replace(/\\/g, "/"),
-            delay: l.delay, dur: l.dur, layer: l.layer, text: E.fontTag(text, font, font), mt: onlyChanged(mt), scale: size > 200 ? size / 2 : 100 };
+        // template pronto (resolvido antes por ensureTemplate); a escala do formato multiplica a de tamanho > 200 px
+        return { font: font, mogrt: String(TPL.path || "").replace(/\\/g, "/"),
+            delay: l.delay, dur: l.dur, layer: l.layer, text: E.fontTag(text, font, font), mt: onlyChanged(mt),
+            scale: Math.round((size > 200 ? size / 2 : 100) * (TPL.scale || 100)) / 100 };
     }
-    // o template é um só por tamanho de quadro (as fontes vão no texto): basta garantir que ele existe
-    function ensureFonts() { return ensureTemplate(); }
     function placeNat(layers) {
-        return refreshSeq().then(function () {
+        return refreshSeq().then(ensureTemplate).then(function () {
             var built = layoutCombo(layers, S.posY).map(function (l) { return comboLayer(l, l.text); });
-            return ensureFonts(built.map(function (b) { return b.font; })).then(function () {
-                return WP.call("WPMotion.placeCombo", [JSON.stringify({ start: E.snap(seq.playhead, seq.fps), layers: built })]);
-            });
+            return WP.call("WPMotion.placeCombo", [JSON.stringify({ start: E.snap(seq.playhead, seq.fps), layers: built })]);
         }).then(function (d) {
             say(d.placed + " camada(s) a partir da V" + (d.firstTrack + 1) + (d.problems ? " · ajustes que falharam: " + d.problems : "") + ". Confira no Monitor de Programa.", d.problems ? "error" : "ok");
         });
@@ -753,6 +750,7 @@
             document.querySelectorAll(".tab").forEach(function (t) { t.classList.toggle("hidden", t.id !== "tab-" + b.dataset.tab); });
             if (b.dataset.tab === "combo") { if ($("natBox").classList.contains("hidden")) renderCombos(); else renderNat(); }
             if (b.dataset.tab === "sel") { renderComboSelect(); if (SEL.items.length) renderSel(); else readSel(); }
+            if (b.dataset.tab === "text") { renderStage(); renderAnimGrid(); }
         });
     });
 
@@ -774,16 +772,12 @@
 
     // ---------- template ----------
     var building = null;
+    // template pronto que vem no plugin (nunca abre o After Effects); fora dos formatos prontos, TPL.scale ajusta o clipe
+    var TPL = { scale: 100 };
     function ensureTemplate() {
-        var a = S.fonts[0].ps, b = S.fonts[1].ps;
-        var file = E.templatePath(E.templateName(a, b, seq.w, seq.h));
-        if (E.exists(file)) return Promise.resolve(file);
-        if (building) return building;
-        say("Gerando o template no After Effects (só na 1ª vez neste tamanho de quadro, cerca de 1,5 min)…");
-        building = E.buildTemplate({ fontA: a, fontB: b, width: seq.w, height: seq.h }, WP.extensionRoot(), function (sec, last) {
-            say("Gerando o template no After Effects… " + Math.round(sec) + " s" + (last ? " · " + last : ""));
-        }).then(function (f) { building = null; return f; }, function (e) { building = null; throw e; });
-        return building;
+        try { TPL = E.resolveTemplate(seq.w, seq.h, WP.extensionRoot()); }
+        catch (e) { return Promise.reject(e); }
+        return Promise.resolve(TPL.path);
     }
 
     function refreshSeq() {
@@ -813,7 +807,7 @@
         var btn = this; btn.disabled = true;
         refreshSeq().then(ensureTemplate).then(function (mogrt) {
             var start = E.snap(seq.playhead, seq.fps), end = E.snap(start + (+S.dur), seq.fps);
-            var cfg = { mogrt: mogrt.replace(/\\/g, "/"), items: [itemFor(words, start, end)], params: onlyChanged(params(1)) };
+            var cfg = { mogrt: mogrt.replace(/\\/g, "/"), baseScale: TPL.scale, items: [itemFor(words, start, end)], params: onlyChanged(params(1)) };
             return WP.call("WPMotion.place", [JSON.stringify(cfg)]);
         }).then(function (d) {
             if (!d.placed) throw new Error("O Premiere não aceitou o template (importMGT falhou).");
@@ -896,7 +890,7 @@
             function next() {
                 if (cancel || done >= items.length) return Promise.resolve();
                 var chunk = items.slice(done, done + CHUNK), c0 = performance.now();
-                var cfg = { mogrt: mogrt.replace(/\\/g, "/"), params: base, track: track, newTrack: track === null && $("srtNewTrack").checked,
+                var cfg = { mogrt: mogrt.replace(/\\/g, "/"), baseScale: TPL.scale, params: base, track: track, newTrack: track === null && $("srtNewTrack").checked,
                     reserve: track === null ? items.map(function (x) { return [x.start, x.end]; }) : null,
                     items: chunk.map(function (x) { return { start: x.start, end: x.end, text: x.text, params: x.params }; }) };
                 return WP.call("WPMotion.place", [JSON.stringify(cfg)]).then(function (d) {
@@ -1108,7 +1102,9 @@
         if (!it) { ed.classList.add("hidden"); return; }
         ed.classList.remove("hidden");
         $("selEditName").textContent = "Editando: " + E.plain(it.text).replace(/\n/g, " / ");
+        renderSelAnims(it);
         var ok = it.mt && it.style;
+        $("selEditNote").textContent = ok ? "" : "A animação escolhida vale ao clicar em Animar seleção. Fonte, tamanho e cor ficam aqui depois de animar.";
         $("selEditNote").classList.toggle("hidden", !!ok); $("selEditBody").classList.toggle("hidden", !ok);
         if (!ok) return;
         var lk = itemLook(it), f = byPs[lk.ps];
@@ -1128,6 +1124,34 @@
         $("selEditGradA").disabled = $("selEditGradB").disabled = !g;
         $("selEditColor").title = g ? "Com o degradê ligado a cor fica por baixo; desligue o degradê para ver a cor" : "";
     }
+    // grade de animações do texto selecionado: cada card anima o próprio texto do item (prévia em loop)
+    function itemAnim(it) { return it.style ? Math.round(it.style["Animação"] || 0) : (it.pendAnim !== undefined ? it.pendAnim : animIndex(S.anim)); }
+    var selAnimFor = null;
+    function renderSelAnims(it) {
+        var grid = $("selAnimGrid"), cur = itemAnim(it);
+        if (selAnimFor === it && grid.childNodes.length) {
+            [].forEach.call(grid.childNodes, function (c, n) { c.classList.toggle("active", n === cur); });
+            return;
+        }
+        selAnimFor = it; grid.innerHTML = "";
+        previews = previews.filter(function (p) { return p.kind !== "selcard"; });
+        var ws = E.parseMarkup(E.plain(it.text).replace(/\n/g, " ")).slice(0, 3).map(function (o, n) { return { w: o.w, lv: n === 0 && effLv(it) === 1 ? 1 : 0 }; });
+        ANIMS.forEach(function (a, n) {
+            var card = document.createElement("div"); card.className = "mt-card" + (n === cur ? " active" : "");
+            var view = document.createElement("div"); view.className = "mt-view";
+            var name = document.createElement("div"); name.className = "mt-name"; name.textContent = a.name;
+            card.appendChild(view); card.appendChild(name);
+            card.addEventListener("click", function () {
+                var x = curItem(); if (!x) return;
+                if (x.mt && x.style) pushEdit(x, { "Animação": n }); else { x.pendAnim = n; say("Animação \u201c" + a.name + "\u201d escolhida para este texto; vale ao clicar em Animar seleção.", "ok"); }
+                renderSelAnims(x);
+            });
+            grid.appendChild(card);
+            var units = buildText(view, ws.length ? ws : [{ w: "TEXTO", lv: 0 }], 0.13, 1, true);
+            previews.push({ kind: "selcard", anim: a, units: units, k: 0.13, el: view });
+        });
+    }
+
     $("selEditGrad").addEventListener("change", function () {
         var it = curItem(); if (!it || !it.style) return;
         pushEdit(it, { "Degradê (%)": this.checked ? 100 : 0 }); renderEdit();
@@ -1245,10 +1269,33 @@
             });
         });
     }
+    // textos que aparecem juntos: linhas centralizadas, na ordem de entrada, com o tamanho do papel de cada um
+    function organizeSel(push) {
+        var together = SEL.items.filter(function (it) { return !it.alone; });
+        if (together.length < 2) return 0;
+        var pseudo = together.map(function (it) {
+            var lk = itemLook(it);
+            return { text: E.plain(it.text), size: lk.px, delay: it.start, dur: it.end - it.start };
+        });
+        // centro do bloco: a altura média em que esses textos já estavam (não a altura do Texto novo)
+        var cy = together.reduce(function (s, it) { return s + (+it.y || 50); }, 0) / together.length;
+        layoutCombo(pseudo, cy).forEach(function (l) {
+            var it = together[l.i]; it.x = l.pos[0]; it.y = l.pos[1];
+            if (push) pushPos(it);
+        });
+        return together.length;
+    }
+    $("selLayout").addEventListener("click", function () {
+        var n = organizeSel(true); renderSel();
+        say(n ? n + " textos organizados: empilhados e centralizados, principal maior. Arraste para ajustar." : "Nenhum texto aparece junto com outro na tela; nada a organizar.", "ok");
+    });
     function readSel(keys) {
         return readGraphicsFull(keys && keys.length ? keys : null).then(function (d) {
             SEL.items = d.items; SEL.w = d.w; SEL.h = d.h; SEL.cur = -1;
-            detectRoles(SEL.items); renderSel();
+            detectRoles(SEL.items);
+            // textos ainda não animados: já mostra a hierarquia organizada (os MotionText mantêm a posição gravada)
+            if (!keys && !SEL.items.some(function (i) { return i.mt; })) organizeSel(false);
+            renderSel();
             say(d.items.length + " graphic(s) lidos da timeline.", "ok");
             return loadFrame();
         }).catch(function (e) { SEL.items = []; renderSel(); say(e.message, "error"); });
@@ -1263,9 +1310,13 @@
     function animateSel() {
         return refreshSeq().then(ensureTemplate).then(function (mogrt) {
             var p = params(1); delete p["Posição horizontal (%)"]; delete p["Posição vertical (%)"];
-            var items = SEL.items.map(function (it) { return { key: it.key, text: tagged(roleText(it)), x: it.x, y: it.y }; });
+            var items = SEL.items.map(function (it) {
+                var o = { key: it.key, text: tagged(roleText(it)), x: it.x, y: it.y };
+                if (it.pendAnim !== undefined) o.params = { "Animação": it.pendAnim };
+                return o;
+            });
             say("Animando " + items.length + " graphic(s)…");
-            return WP.call("WPMotion.animateGraphics", [JSON.stringify({ mogrt: mogrt.replace(/\\/g, "/"), params: p, items: items })]);
+            return WP.call("WPMotion.animateGraphics", [JSON.stringify({ mogrt: mogrt.replace(/\\/g, "/"), baseScale: TPL.scale, params: p, items: items })]);
         }).then(function (d) {
             d.items.forEach(function (r) {
                 SEL.items.forEach(function (it) { if (it.key === r.old) { it.key = r.key; it.mt = true; it.text = roleText(it); } });
@@ -1316,7 +1367,7 @@
                 return { key: l.key, text: b.text, x: l.pos[0], y: l.pos[1], params: p, scale: b.scale };
             });
             say("Aplicando a combinação em " + items.length + " graphic(s)…");
-            return WP.call("WPMotion.animateGraphics", [JSON.stringify({ mogrt: mogrt.replace(/\\/g, "/"), params: {}, items: items })]);
+            return WP.call("WPMotion.animateGraphics", [JSON.stringify({ mogrt: mogrt.replace(/\\/g, "/"), baseScale: TPL.scale, params: {}, items: items })]);
         }).then(function (d) {
             d.items.forEach(function (r) { SEL.items.forEach(function (it) { if (it.key === r.old) { it.key = r.key; it.mt = true; } }); });
             return readSel(SEL.items.map(function (it) { return it.key; })).then(function () {
@@ -1326,7 +1377,7 @@
     }
 
     // gancho para testes automáticos pela porta de depuração (carregar SRT sem arrastar arquivo)
-    window.MT_test = { readSrtFile: readSrtFile, state: function () { return S; }, sel: SEL, readSel: readSel, renderSel: renderSel };
+    window.MT_test = { readSrtFile: readSrtFile, state: function () { return S; }, sel: SEL, readSel: readSel, renderSel: renderSel, detectRoles: detectRoles };
 
     // ---------- início ----------
     WP.loadHost("motiontext/host.jsx").then(refreshSeq).then(renderStage)

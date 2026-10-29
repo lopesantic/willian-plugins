@@ -1,5 +1,14 @@
 # MotionText — changelog
 
+## 0.5.0 (Sharp Frame 1.9.0) — 29/10/2026
+- **Sem After Effects:** os templates vêm prontos no plugin (motiontext/templates: 1080×1920, 1920×1080 e 1080×1080; 4:5 usa o quadrado
+  por enquanto). Outro formato usa o de proporção mais próxima, com a escala do clipe ajustada. O painel nunca abre o AE.
+- **Interface reorganizada:** abas Timeline (padrão), Texto novo, Combinações, SRT e Presets; "Fontes e estilo" num bloco
+  recolhível; saíram o contador de fontes, a linha de fontes do projeto (elas continuam no topo do seletor) e as notas longas.
+- **Timeline:** clicar num texto abre a grade de animações desenhadas com o próprio texto dele; dá para escolher uma
+  animação por texto antes de animar. "Organizar" empilha e centraliza os textos que aparecem juntos, com o principal
+  maior, na altura em que eles já estavam; ao ler textos ainda não animados isso já vem aplicado.
+
 ## 0.4.0 (Sharp Frame 1.8.0) — 29/10/2026
 - Pacote renomeado para **Sharp Frame** e um painel só (hub com abas por categoria); os painéis separados saíram do menu.
 - Template único por tamanho de quadro (v4): a fonte vai no fim do texto (`§FontePadrão|FonteDestaque`), então trocar de

@@ -203,6 +203,30 @@
     function untag(text) { return String(text).replace(/§[^§]*$/, ""); }
     function templatePath(name) { return path.join(DATA, "templates", name + ".mogrt"); }
 
+    // Templates prontos que vão dentro do plugin (motiontext/templates/MT_<largura>x<altura>.mogrt): o painel nunca abre o
+    // After Effects (pedido do Willian, 29/10/2026). Tamanho exato: usa o dele; outro tamanho: o de proporção mais
+    // próxima, com a escala do clipe para caber no quadro. Copia para a pasta de dados antes de usar, porque o instalador
+    // troca a pasta do plugin e apagar um .mogrt em uso derruba o Premiere (MEDIDO).
+    // Devolve {path, scale (100 = sem escala), w, h, exact}.
+    function resolveTemplate(w, h, extRoot) {
+        var dir = path.join(extRoot, "motiontext", "templates"), list = [];
+        try { fs.readdirSync(dir).forEach(function (f) { var m = f.match(/^MT_(\d+)x(\d+)\.mogrt$/); if (m) list.push({ w: +m[1], h: +m[2], file: path.join(dir, f) }); }); } catch (e) {}
+        if (!list.length) throw new Error("Os templates do MotionText não estão na instalação. Reinstale o Sharp Frame.");
+        var best = null;
+        list.forEach(function (t) {
+            var d = Math.abs(Math.log((t.w / t.h) / (w / h))) * 10 + Math.abs(Math.log(t.w / w));
+            if (!best || d < best.d) best = { d: d, t: t };
+        });
+        var t = best.t, exact = t.w === w && t.h === h;
+        var dest = path.join(DATA, "templates", "MT_" + t.w + "x" + t.h + "_v" + TEMPLATE_VERSION + ".mogrt");
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        var need = true;
+        try { need = fs.statSync(dest).size !== fs.statSync(t.file).size; } catch (e2) {}
+        if (need) fs.copyFileSync(t.file, dest);
+        var scale = exact ? 100 : Math.round(Math.min(w / t.w, h / t.h) * 10000) / 100;
+        return { path: dest, scale: scale, w: t.w, h: t.h, exact: exact };
+    }
+
     function findAE() {
         var base = "C:\\Program Files\\Adobe";
         try {
@@ -374,7 +398,7 @@
     var api = {
         DATA: DATA, parseMarkup: parseMarkup, toMarkup: toMarkup, plain: plain, autoHierarchy: autoHierarchy,
         layout: layout, measure: measure, parseSRT: parseSRT, snap: snap, amount: amount, unitStyle: unitStyle,
-        templateName: templateName, templatePath: templatePath, fontTag: fontTag, untag: untag, nativeTexts: nativeTexts, projectFonts: projectFonts, buildTemplate: buildTemplate, buildTemplates: buildTemplates, findAE: findAE,
+        templateName: templateName, templatePath: templatePath, resolveTemplate: resolveTemplate, fontTag: fontTag, untag: untag, nativeTexts: nativeTexts, projectFonts: projectFonts, buildTemplate: buildTemplate, buildTemplates: buildTemplates, findAE: findAE,
         readJSON: readJSON, writeJSON: writeJSON, exists: function (p) { return fs.existsSync(p); }
     };
     if (typeof module !== "undefined" && module.exports) module.exports = api;

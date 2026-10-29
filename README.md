@@ -25,7 +25,7 @@ Desde a 1.8.0 os painéis separados ("Willian - Margens", "Willian - AutoCut"...
 | Transcrever | transcreve a faixa de áudio escolhida no PC (whisper.cpp, CUDA): 99 idiomas, modos Chita/Golfinho/Baleia, locutores, para inglês, restaurar áudio; legendas na faixa de captions com N palavras; exporta SRT, TXT, VTT, CSV, DOCX, PDF; tradução online | 0.1.0 |
 | Animar | curvas de animação estilo After Effects nos keyframes (editor de alças, Easy Ease, Ultrapassar, Elástico, Quique, curvas salvas), gravadas quadro a quadro; restaura os originais | 0.1.0 |
 | LUT Library | pasta de .cube com prévia no quadro atual, favoritos, intensidade e aplicação no Lumetri dos clipes selecionados | 0.1.0 |
-| MotionText | legendas e letterings animados por palavra, editáveis em Gráficos Essenciais: 2 fontes globais, níveis padrão/destaque/ligação, 16 animações com prévia, combinações, margens, lote SRT, presets, estilos (degradê, brilho, relevo, caixa, sublinhado, permanência) e os Will Letterings (31 combinações recriadas). Ver [docs/motiontext](docs/motiontext/README.md) | 0.3.0 |
+| MotionText | letterings e legendas animados por palavra, editáveis em Gráficos Essenciais, sem abrir o After Effects (templates prontos para 9:16, 16:9 e 1:1): anima os textos selecionados na timeline (inclusive texto nativo e MOGRT de terceiros) com uma animação por texto e prévia, organiza a hierarquia, combinações prontas (Will Letterings) aplicadas na seleção, editor por texto, seletor de fontes com variações e as fontes do projeto, lote SRT e presets. Ver [docs/motiontext](docs/motiontext/README.md) | 0.5.0 |
 
 ## Pelo Claude Bridge
 Cada painel tem um `host.jsx` com as funções num objeto global. Exemplo:

@@ -44,6 +44,13 @@ var WPMotion = (function () {
         return m ? eval('"' + m[1].replace(/\\r/g, "\\n") + '"') : "";
     }
 
+    // escala do clipe (componente Motion), em %
+    function setScale(clip, s) {
+        for (var i = 0; i < clip.components.numItems; i++) {
+            if (clip.components[i].displayName === "Motion") clip.components[i].properties.getParamForDisplayName("Scale").setValue(s, true);
+        }
+    }
+
     function isMT(clip) {
         try { return clip.isMGT() && clip.name.indexOf(PREFIX) === 0; } catch (e) { return false; }
     }
@@ -163,6 +170,7 @@ var WPMotion = (function () {
                 for (var o in own) if (own.hasOwnProperty(o)) params[o] = own[o];
                 params[DUR] = Math.round((it2.end - it2.start) * 1000) / 1000;
                 missing = setParams(props, params);
+                if (cfg.baseScale && Math.abs(cfg.baseScale - 100) > 0.01) setScale(clip, cfg.baseScale);   // formato sem template exato
                 placed++;
             } catch (e) { failed.push(n); }
         }
@@ -409,9 +417,9 @@ var WPMotion = (function () {
             setText(props, it.text);
             var miss = setParams(props, p);
             if (miss.length) problems.push(miss.join("/"));
-            if (it.scale) {   // tamanho acima do que o slider aceita (200 px): o resto vai na escala do clipe
-                for (var mc = 0; mc < target.components.numItems; mc++) if (target.components[mc].displayName === "Motion") target.components[mc].properties.getParamForDisplayName("Scale").setValue(it.scale, true);
-            }
+            // tamanho acima do que o slider aceita (200 px) e formato sem template exato: vão na escala do clipe
+            var sc = (it.scale || 100) * (cfg.baseScale || 100) / 100;
+            if (Math.abs(sc - 100) > 0.01) setScale(target, sc);
             var label = untag(it.text).replace(/[*_\r\n]/g, " ").replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
             target.name = PREFIX + (label.length > 40 ? label.substr(0, 40) + String.fromCharCode(8230) : label);
             out.push({ old: it.key, key: key });

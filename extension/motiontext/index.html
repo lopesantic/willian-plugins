@@ -8,15 +8,163 @@
 <body>
   <header class="wp-header">
     <div class="wp-mark">S</div>
-    <div><div class="wp-title">MotionText</div><div class="wp-sub">Legendas e letterings animados, editáveis no Premiere</div></div>
+    <div><div class="wp-title">MotionText</div><div class="wp-sub">Letterings animados, editáveis no Premiere</div></div>
   </header>
 
-  <!-- fontes globais -->
-  <details class="card mt-fonts" id="fontsBox" open>
-    <summary><h2>Fontes principais <span class="tag" id="fontsTag">carregando…</span></h2></summary>
+  <!-- o que fazer: textos já na timeline, texto novo, combinação, SRT ou preset -->
+  <div class="row seg mt-tabs">
+    <button data-tab="sel" class="ghost active" title="Animar os textos selecionados na timeline">Timeline</button>
+    <button data-tab="text" class="ghost" title="Escrever um texto novo e aplicar no cursor">Texto novo</button>
+    <button data-tab="combo" class="ghost">Combinações</button>
+    <button data-tab="srt" class="ghost">SRT</button>
+    <button data-tab="presets" class="ghost">Presets</button>
+  </div>
+
+  <!-- ===== textos selecionados na timeline ===== -->
+  <section class="card tab" id="tab-sel">
+    <div class="row mt-toolbar">
+      <button class="ghost chip" id="selRead">Ler seleção</button>
+      <button class="ghost chip" id="selLayout" title="Empilha e centraliza os textos que aparecem juntos, com o principal maior">Organizar</button>
+      <button class="ghost chip" id="selFrame" title="Recarrega o quadro do vídeo atrás da prévia">Atualizar quadro</button>
+    </div>
+    <div class="mt-sel-stage" id="selStage"><img id="selBg" alt=""><div class="mt-sel-center"></div></div>
+    <div class="note" id="selHint">Selecione os textos na timeline e clique em Ler seleção.</div>
+    <div class="mt-sel-list" id="selList"></div>
+
+    <!-- editor de um texto só: abre ao clicar num texto do quadro ou da lista -->
+    <div class="mt-sel-edit hidden" id="selEdit">
+      <div class="mt-sel-edit-head"><b id="selEditName"></b><button class="ghost chip" id="selEditClose">Fechar</button></div>
+      <div class="note hidden" id="selEditNote"></div>
+      <h3 class="mt-mini">Animação</h3>
+      <div class="mt-grid mt-grid-sm" id="selAnimGrid"></div>
+      <div id="selEditBody">
+        <h3 class="mt-mini">Fonte e cor</h3>
+        <input type="search" class="fontpick" id="selEditFont" placeholder="Clique e busque a fonte…" autocomplete="off" spellcheck="false">
+        <select class="fontvar" id="selEditVar" title="Variação da mesma família"></select>
+        <div class="row mt-row3">
+          <div class="field"><label>Tamanho <output id="selEditSizeOut"></output></label><input type="range" id="selEditSize" min="20" max="200" step="1"></div>
+          <div class="field"><label>Cor</label><input type="color" id="selEditColor"></div>
+        </div>
+        <div class="row mt-row3">
+          <label class="check"><input type="checkbox" id="selEditGrad"> Degradê</label>
+          <div class="row mt-colors"><input type="color" id="selEditGradA" title="De"><input type="color" id="selEditGradB" title="Para"></div>
+        </div>
+        <select id="selEditAnim" class="hidden"></select>
+      </div>
+    </div>
+
+    <label class="check"><input type="checkbox" id="selLive" checked> Mover no vídeo enquanto arrasto</label>
+    <button class="primary" id="selApply">Animar seleção</button>
+    <div class="row mt-combo-row">
+      <select id="selCombo" title="Combinação pronta: cada texto selecionado recebe uma camada dela"></select>
+      <button class="ghost" id="selComboApply">Aplicar combinação</button>
+    </div>
+  </section>
+
+  <!-- ===== texto novo, no cursor ===== -->
+  <div class="tab hidden" id="tab-text">
+    <section class="card">
+      <h2>Texto <span class="tag" id="fitTag"></span></h2>
+      <textarea id="text" rows="2" spellcheck="false">Nunca desista dos seus sonhos</textarea>
+      <div class="mt-words" id="words"></div>
+      <div class="note mt-legend"><span class="dot pad"></span>padrão <span class="dot hi"></span>destaque <span class="dot lk"></span>ligação · clique troca · Shift+clique quebra a linha</div>
+      <div class="row">
+        <button class="ghost chip" id="autoHier">Hierarquia automática</button>
+        <button class="ghost chip" id="autoBreak">Quebrar linhas</button>
+        <button class="ghost chip" id="readSel">Ler da timeline</button>
+      </div>
+      <div class="mt-stage" id="stage"><div class="mt-stage-inner" id="stageInner"><div class="mt-safe" id="safe"></div><div class="mt-stage-text" id="stageText"></div></div></div>
+      <div class="row mt-row3">
+        <div class="field"><label>Margens</label>
+          <select id="margin"><option value="reels">Reels</option><option value="tiktok">TikTok</option><option value="shorts">Shorts</option><option value="none">Sem margem</option></select></div>
+        <div class="field"><label>Altura <output id="posYOut"></output></label><input type="range" id="posY" min="5" max="95" step="1"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="autoFit" checked> Ajustar o tamanho para caber na margem</label>
+    </section>
+
+    <section class="card" id="tab-anim">
+      <h2>Animação</h2>
+      <div class="mt-cats" id="cats"></div>
+      <div class="mt-grid" id="animGrid"></div>
+      <div class="row mt-row3">
+        <div class="field"><label>Entrada <output id="inDurOut"></output></label><input type="range" id="inDur" min="0.1" max="2" step="0.05"></div>
+        <div class="field"><label>Atraso por palavra <output id="staggerOut"></output></label><input type="range" id="stagger" min="0" max="0.4" step="0.01"></div>
+      </div>
+      <div class="row mt-row3">
+        <div class="field"><label>Intensidade <output id="intensOut"></output></label><input type="range" id="intensity" min="10" max="100" step="5"></div>
+        <div class="field"><label>Saída</label><select id="exit"><option value="0">Nenhuma</option><option value="1">Reverso</option><option value="2">Fade</option></select></div>
+      </div>
+      <div class="row mt-row3">
+        <div class="field"><label>Duração da saída <output id="outDurOut"></output></label><input type="range" id="outDur" min="0.1" max="1.5" step="0.05"></div>
+        <div class="field"><label>Duração do clipe <output id="durOut"></output></label><input type="range" id="dur" min="0.5" max="10" step="0.1"></div>
+      </div>
+    </section>
+
+    <button id="apply" class="primary">Aplicar no cursor</button>
+    <button id="update" class="ghost">Atualizar legendas selecionadas</button>
+  </div>
+
+  <!-- ===== combinações ===== -->
+  <section class="card tab hidden" id="tab-combo">
+    <div class="row seg" id="comboSrc">
+      <button data-src="nat" class="ghost active">Will Letterings</button><button data-src="basic" class="ghost">Básicas</button>
+    </div>
+    <div id="natBox">
+      <div class="mt-grid combo" id="natGrid"></div>
+      <div class="mt-nated hidden" id="natEditor">
+        <div class="summary" id="natTitle"></div>
+        <div class="stack" id="natLayers"></div>
+        <div class="row">
+          <button class="ghost chip" id="natMine">Usar meu texto</button>
+          <button class="primary" id="natApply" title="Com textos selecionados na timeline, a combinação vai neles; sem seleção, entra no cursor">Aplicar (seleção ou cursor)</button>
+        </div>
+      </div>
+    </div>
+    <div id="basicBox" class="hidden">
+      <div class="row seg" id="comboCount">
+        <button data-n="2" class="ghost">2 palavras</button><button data-n="3" class="ghost active">3 palavras</button><button data-n="4" class="ghost">4 palavras</button>
+      </div>
+      <input type="search" id="comboText" placeholder="Texto da combinação (usa o Texto novo se vazio)">
+      <div class="mt-grid combo" id="comboGrid"></div>
+    </div>
+  </section>
+
+  <!-- ===== SRT ===== -->
+  <section class="card tab hidden" id="tab-srt">
+    <div class="mt-drop" id="drop">Arraste um .srt aqui ou <a href="#" id="pickSrt">escolha o arquivo</a><input type="file" id="srtFile" accept=".srt" class="hidden"></div>
+    <div class="summary" id="srtSummary"></div>
+    <div class="mt-issues" id="srtIssues"></div>
+    <div class="row mt-row3">
+      <div class="field"><label>Destaques</label><select id="srtHier"><option value="auto">Automático (hierarquia)</option><option value="keep">Manter marcação do arquivo</option><option value="none">Sem destaque</option></select></div>
+      <div class="field"><label>Início</label><select id="srtOrigin"><option value="zero">0 da sequência</option><option value="playhead">No cursor</option></select></div>
+    </div>
+    <label class="check"><input type="checkbox" id="srtNewTrack" checked> Sempre numa faixa nova</label>
+    <div class="progress hidden" id="srtProg"><i></i></div>
+    <div class="row">
+      <button class="primary" id="srtGo" disabled>Gerar legendas</button>
+      <button class="ghost hidden" id="srtCancel">Cancelar</button>
+      <button class="ghost hidden" id="srtRetry">Reprocessar falhas</button>
+    </div>
+    <div class="summary" id="srtReport"></div>
+  </section>
+
+  <!-- ===== presets ===== -->
+  <section class="card tab hidden" id="tab-presets">
+    <div class="row"><input type="search" id="presetName" placeholder="Nome do preset…"><button class="ghost chip" id="savePreset">Salvar atual</button></div>
+    <div class="stack" id="presetList"></div>
+    <div class="row">
+      <button class="ghost chip" id="exportPresets">Exportar</button>
+      <button class="ghost chip" id="importPresets">Importar</button>
+      <input type="file" id="presetFile" accept=".json" class="hidden">
+    </div>
+  </section>
+
+  <!-- ===== fontes e estilo (valem para os textos novos e para Animar seleção) ===== -->
+  <details class="card mt-fonts" id="fontsBox">
+    <summary><h2>Fontes e estilo</h2></summary>
     <div class="mt-fontgrid">
       <div class="mt-font" data-lv="0">
-        <div class="mt-fonthead"><span class="dot pad"></span>Legenda padrão</div>
+        <div class="mt-fonthead"><span class="dot pad"></span>Padrão</div>
         <input type="search" class="fontpick" placeholder="Clique e busque a fonte…" autocomplete="off" spellcheck="false">
         <select class="fontvar" title="Variação da mesma família (peso e itálico)"></select>
         <div class="field"><label>Tamanho <output></output></label><input type="range" data-k="size" min="20" max="200" step="1"></div>
@@ -24,7 +172,7 @@
         <button class="ghost chip reset">Restaurar</button>
       </div>
       <div class="mt-font" data-lv="1">
-        <div class="mt-fonthead"><span class="dot hi"></span>Legenda de destaque</div>
+        <div class="mt-fonthead"><span class="dot hi"></span>Destaque</div>
         <input type="search" class="fontpick" placeholder="Clique e busque a fonte…" autocomplete="off" spellcheck="false">
         <select class="fontvar" title="Variação da mesma família (peso e itálico)"></select>
         <div class="field"><label>Tamanho <output></output></label><input type="range" data-k="size" min="20" max="200" step="1"></div>
@@ -32,7 +180,6 @@
         <button class="ghost chip reset">Restaurar</button>
       </div>
     </div>
-    <div class="note mt-projfonts" id="projFonts">Fontes do projeto: lendo…</div>
     <div class="row mt-row3">
       <div class="field"><label>Ligação <output id="linkOut"></output></label><input type="range" id="linkSize" min="20" max="200" step="1"></div>
       <div class="field"><label>Entre palavras <output id="wsOut"></output></label><input type="range" id="wordSpace" min="-200" max="200" step="10"></div>
@@ -43,104 +190,11 @@
       <label class="swatch">Ligação <input type="color" id="colLink"></label>
       <label class="swatch">Contorno <input type="color" id="colStroke"></label>
     </div>
-    <label class="check"><input type="checkbox" id="applyExisting"> Mudanças de tamanho e cor também nas legendas já na timeline</label>
-  </details>
-  <datalist id="fontList"></datalist>
-  <!-- seletor de fontes: fontes do projeto do cliente no topo, depois todas as instaladas -->
-  <div class="mt-fontpop hidden" id="fontPop"><div id="fontPopList"></div></div>
-
-  <!-- texto e editor por palavra -->
-  <section class="card">
-    <h2>Texto <span class="tag" id="fitTag"></span></h2>
-    <textarea id="text" rows="2" spellcheck="false">Nunca desista dos seus sonhos</textarea>
-    <div class="mt-words" id="words"></div>
-    <div class="note mt-legend"><span class="dot pad"></span>padrão <span class="dot hi"></span>destaque <span class="dot lk"></span>ligação · clique troca o nível · Shift+clique quebra a linha depois</div>
-    <div class="row">
-      <button class="ghost chip" id="autoHier">Hierarquia automática</button>
-      <button class="ghost chip" id="autoBreak">Quebrar linhas</button>
-      <button class="ghost chip" id="readSel">Ler da timeline</button>
-    </div>
-    <div class="mt-stage" id="stage"><div class="mt-stage-inner" id="stageInner"><div class="mt-safe" id="safe"></div><div class="mt-stage-text" id="stageText"></div></div></div>
-    <div class="row mt-row3">
-      <div class="field"><label>Margens</label>
-        <select id="margin"><option value="reels">Reels</option><option value="tiktok">TikTok</option><option value="shorts">Shorts</option><option value="none">Sem margem</option></select></div>
-      <div class="field"><label>Altura <output id="posYOut"></output></label><input type="range" id="posY" min="5" max="95" step="1"></div>
-    </div>
-    <label class="check"><input type="checkbox" id="autoFit" checked> Ajustar o tamanho para caber na margem</label>
-  </section>
-
-  <!-- abas -->
-  <div class="row seg mt-tabs">
-    <button data-tab="sel" class="ghost">Seleção</button>
-    <button data-tab="anim" class="ghost active">Animações</button>
-    <button data-tab="combo" class="ghost">Combinações</button>
-    <button data-tab="srt" class="ghost">SRT</button>
-    <button data-tab="presets" class="ghost">Presets</button>
-  </div>
-
-  <!-- graphics selecionados na timeline: tempo pela posição de cada um, hierarquia pelo tamanho/ordem -->
-  <section class="card tab hidden" id="tab-sel">
-    <p class="note">Empilhe os graphics na timeline (um por palavra ou trecho), selecione e leia. Cada um entra no tempo em que está; a animação e o estilo são os das abas Animações e Fontes.</p>
-    <div class="row">
-      <button class="ghost chip" id="selRead">Ler seleção da timeline</button>
-      <button class="ghost chip" id="selFrame">Atualizar quadro</button>
-    </div>
-    <div class="mt-sel-stage" id="selStage"><img id="selBg" alt=""><div class="mt-sel-center"></div></div>
-    <div class="note" id="selHint">Arraste os textos no quadro para posicionar. Clique no papel para trocar.</div>
-    <!-- editor de um texto só: abre ao clicar num texto do quadro ou da lista -->
-    <div class="mt-sel-edit hidden" id="selEdit">
-      <div class="mt-sel-edit-head"><b id="selEditName"></b><button class="ghost chip" id="selEditClose">Fechar</button></div>
-      <div class="note hidden" id="selEditNote">Anime este texto primeiro (Animar seleção ou Aplicar combinação) para editar o estilo dele.</div>
-      <div id="selEditBody">
-        <input type="search" class="fontpick" id="selEditFont" placeholder="Clique e busque a fonte…" autocomplete="off" spellcheck="false">
-        <select class="fontvar" id="selEditVar" title="Variação da mesma família"></select>
-        <div class="row mt-row3">
-          <div class="field"><label>Tamanho <output id="selEditSizeOut"></output></label><input type="range" id="selEditSize" min="20" max="200" step="1"></div>
-          <div class="field"><label>Cor</label><input type="color" id="selEditColor"></div>
-        </div>
-        <div class="row mt-row3">
-          <label class="check"><input type="checkbox" id="selEditGrad"> Degradê (cobre a cor)</label>
-          <div class="field"><label>De / para</label><div class="row"><input type="color" id="selEditGradA"><input type="color" id="selEditGradB"></div></div>
-        </div>
-        <div class="field"><label>Animação de entrada</label><select id="selEditAnim"></select></div>
-      </div>
-    </div>
-    <div class="mt-sel-list" id="selList"></div>
-    <label class="check"><input type="checkbox" id="selLive" checked> Mover no vídeo enquanto arrasto</label>
-    <button class="primary" id="selApply">Animar seleção</button>
-    <h2 class="mt-sub">Combinação pronta na seleção</h2>
-    <p class="note">Cada graphic mantém o texto e o tempo; o principal recebe a camada forte da combinação e os outros, as de apoio, empilhados e centralizados.</p>
-    <div class="row mt-combo-row">
-      <select id="selCombo"></select>
-      <button class="ghost" id="selComboApply">Aplicar combinação</button>
-    </div>
-  </section>
-
-  <section class="card tab" id="tab-anim">
-    <div class="mt-cats" id="cats"></div>
-    <div class="mt-grid" id="animGrid"></div>
-
-    <div class="row mt-row3">
-      <div class="field"><label>Entrada <output id="inDurOut"></output></label><input type="range" id="inDur" min="0.1" max="2" step="0.05"></div>
-      <div class="field"><label>Atraso por palavra <output id="staggerOut"></output></label><input type="range" id="stagger" min="0" max="0.4" step="0.01"></div>
-    </div>
-    <div class="row mt-row3">
-      <div class="field"><label>Intensidade <output id="intensOut"></output></label><input type="range" id="intensity" min="10" max="100" step="5"></div>
-      <div class="field"><label>Saída</label><select id="exit"><option value="0">Nenhuma</option><option value="1">Reverso</option><option value="2">Fade</option></select></div>
-    </div>
-    <div class="row mt-row3">
-      <div class="field"><label>Duração da saída <output id="outDurOut"></output></label><input type="range" id="outDur" min="0.1" max="1.5" step="0.05"></div>
-      <div class="field"><label>Duração do clipe <output id="durOut"></output></label><input type="range" id="dur" min="0.5" max="10" step="0.1"></div>
-    </div>
+    <h3 class="mt-mini">Estilo</h3>
+    <div class="mt-cats" id="looks"></div>
     <div class="row mt-row3">
       <div class="field"><label>Contorno <output id="strokeOut"></output></label><input type="range" id="stroke" min="0" max="20" step="1"></div>
       <div class="field"><label>Sombra <output id="shadowOut"></output></label><input type="range" id="shadow" min="0" max="100" step="5"></div>
-    </div>
-    <h2 class="mt-sub">Estilo</h2>
-    <div class="mt-cats" id="looks"></div>
-    <div class="row mt-row3">
-      <div class="field"><label>Permanência</label><select id="hold"><option value="0">Nenhuma</option><option value="1">Onda</option><option value="2">Flutuar</option><option value="3">Tremer</option><option value="4">Pulso</option></select></div>
-      <div class="field"><label>Força <output id="holdIntOut"></output></label><input type="range" id="holdInt" min="0" max="100" step="5"></div>
     </div>
     <div class="row mt-row3">
       <div class="field"><label>Degradê <output id="gradOut"></output></label><input type="range" id="grad" min="0" max="100" step="5"></div>
@@ -166,68 +220,17 @@
       <div class="field"><label>Arredondar <output id="boxRoundOut"></output></label><input type="range" id="boxRound" min="0" max="100" step="5"></div>
       <div class="field"><label>Margem da caixa <output id="boxPadOut"></output></label><input type="range" id="boxPad" min="0" max="100" step="5"></div>
     </div>
-    <p class="note">A prévia usa as mesmas curvas do template, desenhadas pelo navegador do painel: é aproximada (fonte, borda, brilho e relevo podem diferir). O resultado real é o Monitor de Programa.</p>
-  </section>
-
-  <section class="card tab hidden" id="tab-combo">
-    <div class="row seg" id="comboSrc">
-      <button data-src="nat" class="ghost active">Will Letterings</button><button data-src="basic" class="ghost">Básicas</button>
-    </div>
-    <div id="natBox">
-      <div class="mt-grid combo" id="natGrid"></div>
-      <div class="mt-nated hidden" id="natEditor">
-        <div class="summary" id="natTitle"></div>
-        <div class="stack" id="natLayers"></div>
-        <div class="row">
-          <button class="ghost chip" id="natMine">Usar meu texto</button>
-          <button class="primary" id="natApply" title="Com graphics selecionados na timeline, a combinação vai neles; sem seleção, entra no cursor">Aplicar combinação (seleção ou cursor)</button>
-        </div>
-      </div>
-      <p class="note">Will Letterings: combinações recriadas no template do MotionText (fontes, cores, brilho, degradê e animações equivalentes). Cada camada vai para uma faixa própria acima do que já existe.</p>
-    </div>
-    <div id="basicBox" class="hidden">
-    <div class="row seg" id="comboCount">
-      <button data-n="2" class="ghost">2 palavras</button><button data-n="3" class="ghost active">3 palavras</button><button data-n="4" class="ghost">4 palavras</button>
-    </div>
-    <input type="search" id="comboText" placeholder="Texto da combinação (usa o texto acima se vazio)">
-    <div class="mt-grid combo" id="comboGrid"></div>
-    <p class="note">Clique numa combinação para levá-la ao texto acima; depois ajuste e aplique.</p>
-    </div>
-  </section>
-
-  <section class="card tab hidden" id="tab-srt">
-    <div class="mt-drop" id="drop">Arraste um .srt aqui ou <a href="#" id="pickSrt">escolha o arquivo</a><input type="file" id="srtFile" accept=".srt" class="hidden"></div>
-    <div class="summary" id="srtSummary"></div>
-    <div class="mt-issues" id="srtIssues"></div>
     <div class="row mt-row3">
-      <div class="field"><label>Destaques</label><select id="srtHier"><option value="auto">Automático (hierarquia)</option><option value="keep">Manter marcação do arquivo</option><option value="none">Sem destaque</option></select></div>
-      <div class="field"><label>Início</label><select id="srtOrigin"><option value="zero">0 da sequência</option><option value="playhead">No cursor</option></select></div>
+      <div class="field"><label>Permanência</label><select id="hold"><option value="0">Nenhuma</option><option value="1">Onda</option><option value="2">Flutuar</option><option value="3">Tremer</option><option value="4">Pulso</option></select></div>
+      <div class="field"><label>Força <output id="holdIntOut"></output></label><input type="range" id="holdInt" min="0" max="100" step="5"></div>
     </div>
-    <label class="check"><input type="checkbox" id="srtNewTrack" checked> Sempre numa faixa nova (não mistura com o que já existe)</label>
-    <div class="progress hidden" id="srtProg"><i></i></div>
-    <div class="row">
-      <button class="primary" id="srtGo" disabled>Gerar legendas</button>
-      <button class="ghost hidden" id="srtCancel">Cancelar</button>
-      <button class="ghost hidden" id="srtRetry">Reprocessar falhas</button>
-    </div>
-    <div class="summary" id="srtReport"></div>
-  </section>
+    <label class="check"><input type="checkbox" id="applyExisting"> Aplicar também nas legendas já na timeline</label>
+  </details>
+  <datalist id="fontList"></datalist>
+  <!-- seletor de fontes: fontes do projeto do cliente no topo, depois todas as instaladas -->
+  <div class="mt-fontpop hidden" id="fontPop"><div id="fontPopList"></div></div>
 
-  <section class="card tab hidden" id="tab-presets">
-    <div class="row"><input type="search" id="presetName" placeholder="Nome do preset…"><button class="ghost chip" id="savePreset">Salvar atual</button></div>
-    <div class="stack" id="presetList"></div>
-    <div class="row">
-      <button class="ghost chip" id="exportPresets">Exportar</button>
-      <button class="ghost chip" id="importPresets">Importar</button>
-      <input type="file" id="presetFile" accept=".json" class="hidden">
-    </div>
-  </section>
-
-  <button id="apply" class="primary">Aplicar no cursor</button>
-  <button id="update" class="ghost">Atualizar legendas selecionadas</button>
-
-  <div class="status" id="status">Escolha as fontes, escreva o texto e a animação.</div>
-  <p class="note">O template é gerado no After Effects uma vez só por tamanho de quadro (cerca de 1,5 min); depois qualquer fonte instalada é instantânea, porque a fonte vai junto com o texto. Texto, tamanhos, cores e animação continuam editáveis em Gráficos Essenciais (não apague o final com § e o nome das fontes). Confira se o texto não cobre rostos.</p>
+  <div class="status" id="status">Selecione os textos na timeline ou escreva um texto novo.</div>
 
   <script src="../shared/host-bridge.js"></script>
   <script src="anims.js"></script>
