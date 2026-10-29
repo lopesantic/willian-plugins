@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>MotionText</title>
+  <link rel="stylesheet" href="../shared/panel.css">
+</head>
+<body>
+  <header class="wp-header">
+    <div class="wp-mark">W</div>
+    <div><div class="wp-title">MotionText</div><div class="wp-sub">Legendas e letterings animados, editáveis no Premiere</div></div>
+  </header>
+
+  <!-- fontes globais -->
+  <details class="card mt-fonts" id="fontsBox" open>
+    <summary><h2>Fontes principais <span class="tag" id="fontsTag">carregando…</span></h2></summary>
+    <div class="mt-fontgrid">
+      <div class="mt-font" data-lv="0">
+        <div class="mt-fonthead"><span class="dot pad"></span>Legenda padrão</div>
+        <input type="search" class="fontpick" list="fontList" placeholder="Fonte…">
+        <div class="field"><label>Tamanho <output></output></label><input type="range" data-k="size" min="20" max="200" step="1"></div>
+        <div class="field"><label>Letras <output></output></label><input type="range" data-k="tracking" min="-200" max="200" step="5"></div>
+        <button class="ghost chip reset">Restaurar</button>
+      </div>
+      <div class="mt-font" data-lv="1">
+        <div class="mt-fonthead"><span class="dot hi"></span>Legenda de destaque</div>
+        <input type="search" class="fontpick" list="fontList" placeholder="Fonte…">
+        <div class="field"><label>Tamanho <output></output></label><input type="range" data-k="size" min="20" max="200" step="1"></div>
+        <div class="field"><label>Letras <output></output></label><input type="range" data-k="tracking" min="-200" max="200" step="5"></div>
+        <button class="ghost chip reset">Restaurar</button>
+      </div>
+    </div>
+    <div class="row mt-row3">
+      <div class="field"><label>Ligação <output id="linkOut"></output></label><input type="range" id="linkSize" min="20" max="200" step="1"></div>
+      <div class="field"><label>Entre palavras <output id="wsOut"></output></label><input type="range" id="wordSpace" min="-200" max="200" step="10"></div>
+    </div>
+    <div class="row mt-colors">
+      <label class="swatch">Padrão <input type="color" id="colPad"></label>
+      <label class="swatch">Destaque <input type="color" id="colHi"></label>
+      <label class="swatch">Ligação <input type="color" id="colLink"></label>
+      <label class="swatch">Contorno <input type="color" id="colStroke"></label>
+    </div>
+    <label class="check"><input type="checkbox" id="applyExisting"> Mudanças de tamanho e cor também nas legendas já na timeline</label>
+  </details>
+  <datalist id="fontList"></datalist>
+
+  <!-- texto e editor por palavra -->
+  <section class="card">
+    <h2>Texto <span class="tag" id="fitTag"></span></h2>
+    <textarea id="text" rows="2" spellcheck="false">Nunca desista dos seus sonhos</textarea>
+    <div class="mt-words" id="words"></div>
+    <div class="note mt-legend"><span class="dot pad"></span>padrão <span class="dot hi"></span>destaque <span class="dot lk"></span>ligação · clique troca o nível · Shift+clique quebra a linha depois</div>
+    <div class="row">
+      <button class="ghost chip" id="autoHier">Hierarquia automática</button>
+      <button class="ghost chip" id="autoBreak">Quebrar linhas</button>
+      <button class="ghost chip" id="readSel">Ler da timeline</button>
+    </div>
+    <div class="mt-stage" id="stage"><div class="mt-safe" id="safe"></div><div class="mt-stage-text" id="stageText"></div></div>
+    <div class="row mt-row3">
+      <div class="field"><label>Margens</label>
+        <select id="margin"><option value="reels">Reels</option><option value="tiktok">TikTok</option><option value="shorts">Shorts</option><option value="none">Sem margem</option></select></div>
+      <div class="field"><label>Altura <output id="posYOut"></output></label><input type="range" id="posY" min="5" max="95" step="1"></div>
+    </div>
+    <label class="check"><input type="checkbox" id="autoFit" checked> Ajustar o tamanho para caber na margem</label>
+  </section>
+
+  <!-- abas -->
+  <div class="row seg mt-tabs">
+    <button data-tab="anim" class="ghost active">Animações</button>
+    <button data-tab="combo" class="ghost">Combinações</button>
+    <button data-tab="srt" class="ghost">SRT</button>
+    <button data-tab="presets" class="ghost">Presets</button>
+  </div>
+
+  <section class="card tab" id="tab-anim">
+    <div class="mt-cats" id="cats"></div>
+    <div class="mt-grid" id="animGrid"></div>
+    <div class="row mt-row3">
+      <div class="field"><label>Entrada <output id="inDurOut"></output></label><input type="range" id="inDur" min="0.1" max="2" step="0.05"></div>
+      <div class="field"><label>Atraso por palavra <output id="staggerOut"></output></label><input type="range" id="stagger" min="0" max="0.4" step="0.01"></div>
+    </div>
+    <div class="row mt-row3">
+      <div class="field"><label>Intensidade <output id="intensOut"></output></label><input type="range" id="intensity" min="10" max="100" step="5"></div>
+      <div class="field"><label>Saída</label><select id="exit"><option value="0">Nenhuma</option><option value="1">Reverso</option><option value="2">Fade</option></select></div>
+    </div>
+    <div class="row mt-row3">
+      <div class="field"><label>Duração da saída <output id="outDurOut"></output></label><input type="range" id="outDur" min="0.1" max="1.5" step="0.05"></div>
+      <div class="field"><label>Duração do clipe <output id="durOut"></output></label><input type="range" id="dur" min="0.5" max="10" step="0.1"></div>
+    </div>
+    <div class="row mt-row3">
+      <div class="field"><label>Contorno <output id="strokeOut"></output></label><input type="range" id="stroke" min="0" max="20" step="1"></div>
+      <div class="field"><label>Sombra <output id="shadowOut"></output></label><input type="range" id="shadow" min="0" max="100" step="5"></div>
+    </div>
+    <p class="note">A prévia usa as mesmas curvas do template, desenhadas pelo navegador do painel: é aproximada (fonte e borda podem diferir um pouco). O resultado real é o Monitor de Programa.</p>
+  </section>
+
+  <section class="card tab hidden" id="tab-combo">
+    <div class="row seg" id="comboCount">
+      <button data-n="2" class="ghost">2 palavras</button><button data-n="3" class="ghost active">3 palavras</button><button data-n="4" class="ghost">4 palavras</button>
+    </div>
+    <input type="search" id="comboText" placeholder="Texto da combinação (usa o texto acima se vazio)">
+    <div class="mt-grid combo" id="comboGrid"></div>
+    <p class="note">Clique numa combinação para levá-la ao texto acima; depois ajuste e aplique.</p>
+  </section>
+
+  <section class="card tab hidden" id="tab-srt">
+    <div class="mt-drop" id="drop">Arraste um .srt aqui ou <a href="#" id="pickSrt">escolha o arquivo</a><input type="file" id="srtFile" accept=".srt" class="hidden"></div>
+    <div class="summary" id="srtSummary"></div>
+    <div class="mt-issues" id="srtIssues"></div>
+    <div class="row mt-row3">
+      <div class="field"><label>Destaques</label><select id="srtHier"><option value="auto">Automático (hierarquia)</option><option value="keep">Manter marcação do arquivo</option><option value="none">Sem destaque</option></select></div>
+      <div class="field"><label>Início</label><select id="srtOrigin"><option value="zero">0 da sequência</option><option value="playhead">No cursor</option></select></div>
+    </div>
+    <label class="check"><input type="checkbox" id="srtNewTrack" checked> Sempre numa faixa nova (não mistura com o que já existe)</label>
+    <div class="progress hidden" id="srtProg"><i></i></div>
+    <div class="row">
+      <button class="primary" id="srtGo" disabled>Gerar legendas</button>
+      <button class="ghost hidden" id="srtCancel">Cancelar</button>
+      <button class="ghost hidden" id="srtRetry">Reprocessar falhas</button>
+    </div>
+    <div class="summary" id="srtReport"></div>
+  </section>
+
+  <section class="card tab hidden" id="tab-presets">
+    <div class="row"><input type="search" id="presetName" placeholder="Nome do preset…"><button class="ghost chip" id="savePreset">Salvar atual</button></div>
+    <div class="stack" id="presetList"></div>
+    <div class="row">
+      <button class="ghost chip" id="exportPresets">Exportar</button>
+      <button class="ghost chip" id="importPresets">Importar</button>
+      <input type="file" id="presetFile" accept=".json" class="hidden">
+    </div>
+  </section>
+
+  <button id="apply" class="primary">Aplicar no cursor</button>
+  <button id="update" class="ghost">Atualizar legendas selecionadas</button>
+
+  <div class="status" id="status">Escolha as fontes, escreva o texto e a animação.</div>
+  <p class="note">As fontes ficam fixas no template gerado pelo After Effects (1ª vez com um par de fontes: cerca de 1 min; depois é instantâneo). Texto, tamanhos, cores e animação continuam editáveis em Gráficos Essenciais. Confira se o texto não cobre rostos.</p>
+
+  <script src="../shared/host-bridge.js"></script>
+  <script src="anims.js"></script>
+  <script src="fonts.js"></script>
+  <script src="engine.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

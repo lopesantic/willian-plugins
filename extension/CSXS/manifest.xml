@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Willian Plugins: um pacote, um painel por ferramenta. Sem login, sem servidor. -->
-<ExtensionManifest Version="7.0" ExtensionBundleId="com.willian.plugins" ExtensionBundleVersion="1.4.1" ExtensionBundleName="Willian Plugins" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ExtensionManifest Version="7.0" ExtensionBundleId="com.willian.plugins" ExtensionBundleVersion="1.5.0" ExtensionBundleName="Willian Plugins" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ExtensionList>
     <Extension Id="com.willian.plugins.margens" Version="0.1.0"/>
     <Extension Id="com.willian.plugins.autocut" Version="0.1.0"/>
@@ -10,6 +10,7 @@
     <Extension Id="com.willian.plugins.lutlibrary" Version="0.1.0"/>
     <Extension Id="com.willian.plugins.transcrever" Version="0.1.0"/>
     <Extension Id="com.willian.plugins.animar" Version="0.1.0"/>
+    <Extension Id="com.willian.plugins.motiontext" Version="0.1.0"/>
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList><Host Name="PPRO" Version="[25.0,99.9]"/></HostList>
@@ -129,5 +130,18 @@
         </UI>
       </DispatchInfo>
     </Extension>
-  </DispatchInfoList>
+      <Extension Id="com.willian.plugins.motiontext">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./motiontext/index.html</MainPath>
+          <CEFCommandLine><Parameter>--enable-nodejs</Parameter><Parameter>--mixed-context</Parameter></CEFCommandLine>
+        </Resources>
+        <Lifecycle><AutoVisible>true</AutoVisible></Lifecycle>
+        <UI>
+          <Type>Panel</Type>
+          <Menu>Willian - MotionText</Menu>
+          <Geometry><Size><Height>760</Height><Width>360</Width></Size></Geometry>
+        </UI>
+      </DispatchInfo>
+    </Extension></DispatchInfoList>
 </ExtensionManifest>
