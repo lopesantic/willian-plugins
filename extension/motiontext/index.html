@@ -87,6 +87,24 @@
     </div>
     <div class="mt-sel-stage" id="selStage"><img id="selBg" alt=""><div class="mt-sel-center"></div></div>
     <div class="note" id="selHint">Arraste os textos no quadro para posicionar. Clique no papel para trocar.</div>
+    <!-- editor de um texto só: abre ao clicar num texto do quadro ou da lista -->
+    <div class="mt-sel-edit hidden" id="selEdit">
+      <div class="mt-sel-edit-head"><b id="selEditName"></b><button class="ghost chip" id="selEditClose">Fechar</button></div>
+      <div class="note hidden" id="selEditNote">Anime este texto primeiro (Animar seleção ou Aplicar combinação) para editar o estilo dele.</div>
+      <div id="selEditBody">
+        <input type="search" class="fontpick" id="selEditFont" placeholder="Clique e busque a fonte…" autocomplete="off" spellcheck="false">
+        <select class="fontvar" id="selEditVar" title="Variação da mesma família"></select>
+        <div class="row mt-row3">
+          <div class="field"><label>Tamanho <output id="selEditSizeOut"></output></label><input type="range" id="selEditSize" min="20" max="200" step="1"></div>
+          <div class="field"><label>Cor</label><input type="color" id="selEditColor"></div>
+        </div>
+        <div class="row mt-row3">
+          <label class="check"><input type="checkbox" id="selEditGrad"> Degradê (cobre a cor)</label>
+          <div class="field"><label>De / para</label><div class="row"><input type="color" id="selEditGradA"><input type="color" id="selEditGradB"></div></div>
+        </div>
+        <div class="field"><label>Animação de entrada</label><select id="selEditAnim"></select></div>
+      </div>
+    </div>
     <div class="mt-sel-list" id="selList"></div>
     <label class="check"><input type="checkbox" id="selLive" checked> Mover no vídeo enquanto arrasto</label>
     <button class="primary" id="selApply">Animar seleção</button>
@@ -162,7 +180,7 @@
         <div class="stack" id="natLayers"></div>
         <div class="row">
           <button class="ghost chip" id="natMine">Usar meu texto</button>
-          <button class="primary" id="natApply">Aplicar combinação no cursor</button>
+          <button class="primary" id="natApply" title="Com graphics selecionados na timeline, a combinação vai neles; sem seleção, entra no cursor">Aplicar combinação (seleção ou cursor)</button>
         </div>
       </div>
       <p class="note">Will Letterings: combinações recriadas no template do MotionText (fontes, cores, brilho, degradê e animações equivalentes). Cada camada vai para uma faixa própria acima do que já existe.</p>

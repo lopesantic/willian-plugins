@@ -40,8 +40,8 @@ var WPMotion = (function () {
     function readText(props) {
         var p = props.getParamForDisplayName("Texto");
         if (!p) return "";
-        var m = String(p.getValue()).match(/"textEditValue":"((?:[^"\]|\.)*)"/);
-        return m ? eval('"' + m[1].replace(/\r/g, "\n") + '"') : "";
+        var m = String(p.getValue()).match(/"textEditValue":"((?:[^"\\]|\\.)*)"/);
+        return m ? eval('"' + m[1].replace(/\\r/g, "\\n") + '"') : "";
     }
 
     function isMT(clip) {
@@ -329,11 +329,15 @@ var WPMotion = (function () {
         return [50, 50];
     }
 
-    // [{key, track, start, end, name, mt, text, size, font, x, y}] dos graphics selecionados, por início
-    function readGraphics() {
+    // [{key, track, start, end, name, mt, text, size, font, x, y}] dos graphics selecionados, por início.
+    // keysJson (opcional): '["faixa:ticks", ...]' lê esses clipes em vez da seleção (depois de animar, a seleção do
+    // Premiere nem sempre passa para os clipes novos: MEDIDO 29/10/2026)
+    function readGraphics(keysJson) {
         var seq = app.project.activeSequence;
         if (!seq) return C.fail("Nenhuma sequência ativa.");
-        var sel = seq.getSelection(), list = [];
+        var sel = [], list = [];
+        if (keysJson) { var ks = parse(keysJson); for (var q = 0; q < ks.length; q++) { var kc = byKey(seq, ks[q]); if (kc) sel.push(kc); } }
+        else sel = seq.getSelection();
         for (var i = 0; i < sel.length; i++) {
             var clip = sel[i];
             try { if (!clip.isMGT()) continue; } catch (e) { continue; }
@@ -350,14 +354,15 @@ var WPMotion = (function () {
             }
             var t = trackOf(seq, clip), mt = isMT(clip), text = [], size = 0;
             for (var k = 0; k < tx.length; k++) { text.push(tx[k].text); size = Math.max(size, tx[k].size); }
-            var pos = [50, 50];
+            var pos = [50, 50], style = null;
             if (mt) {
                 var props = clip.getMGTComponent().properties;
                 pos = [Number(props.getParamForDisplayName(POSX).getValue()), Number(props.getParamForDisplayName(POSY).getValue())];
                 size = 0;   // no nosso template o tamanho vem do papel (padrão/destaque/ligação) no texto
+                style = mtStyle(props);
             } else pos = motionPos(clip);
             list.push({ key: keyOf(t, clip), track: t, start: secs(clip.start.ticks), end: secs(clip.end.ticks), name: clip.name,
-                mt: mt, text: text.join("\n"), size: size, font: tx[0].font, x: pos[0], y: pos[1] });
+                mt: mt, text: text.join("\n"), size: size, font: tx[0].font, x: pos[0], y: pos[1], style: style });
         }
         if (!list.length) return C.fail("Selecione na timeline os graphics (textos ou templates) que vão ser animados.");
         list.sort(function (a, b) { return a.start - b.start || a.track - b.track; });
@@ -410,6 +415,8 @@ var WPMotion = (function () {
             var label = untag(it.text).replace(/[*_\r\n]/g, " ").replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
             target.name = PREFIX + (label.length > 40 ? label.substr(0, 40) + String.fromCharCode(8230) : label);
             out.push({ old: it.key, key: key });
+            // a seleção passa para o MotionText novo (senão o painel relia o original desligado e nada editava)
+            if (target !== clip) { try { clip.setSelected(false, true); target.setSelected(true, true); } catch (eSel) {} }
         }
         refreshMonitor(seq);
         return enc({ ok: true, items: out, problems: problems.join("|") });
@@ -418,6 +425,35 @@ var WPMotion = (function () {
     // o Monitor de Programa só redesenha quando o cursor anda: mexer 1 tick e voltar força o quadro novo
     function refreshMonitor(seq) {
         try { var p = String(seq.getPlayerPosition().ticks); seq.setPlayerPosition(String(Number(p) + 1)); seq.setPlayerPosition(p); } catch (e) {}
+    }
+
+    // estilo atual de uma legenda MotionText (editor por item do painel): animação, tamanhos, cores e fontes do texto
+    var STYLE_NUM = ["Animação", "Tamanho padrão", "Tamanho destaque", "Tamanho ligação", "Degradê (%)"];
+    var STYLE_COL = ["Cor padrão", "Cor destaque", "Cor ligação", "Degradê cor 1", "Degradê cor 2"];
+    function mtStyle(props) {
+        var st = {}, i, p;
+        for (i = 0; i < STYLE_NUM.length; i++) { p = props.getParamForDisplayName(STYLE_NUM[i]); if (p) st[STYLE_NUM[i]] = Number(p.getValue()); }
+        for (i = 0; i < STYLE_COL.length; i++) {
+            p = props.getParamForDisplayName(STYLE_COL[i]);
+            if (p) { try { var c = p.getColorValue(); st[STYLE_COL[i]] = [c[1] / 255, c[2] / 255, c[3] / 255]; } catch (e) {} }
+        }
+        var raw = readText(props), k = raw.lastIndexOf(SEC);
+        st.fonts = k >= 0 ? raw.substring(k + 1).split("|") : [];
+        st.text = k >= 0 ? raw.substring(0, k) : raw;   // com a marcação * e _
+        return st;
+    }
+
+    // cfg: {key, params?, text?}: estilo de um item só (editor da aba Seleção); tempo e posição ficam como estão
+    function setItem(cfgJson) {
+        var cfg = parse(cfgJson), seq = app.project.activeSequence;
+        if (!seq) return C.fail("Nenhuma sequência ativa.");
+        var clip = byKey(seq, cfg.key);
+        if (!clip || !isMT(clip)) return C.fail("Esse texto não está mais na timeline. Leia a seleção de novo.");
+        var props = clip.getMGTComponent().properties;
+        if (cfg.text) setText(props, cfg.text);
+        var miss = cfg.params ? setParams(props, cfg.params) : [];
+        refreshMonitor(seq);
+        return C.out({ ok: true, missing: miss.join("|") });
     }
 
     // cfg: {items:[{key, x, y}]}: só posição (arrastar na prévia do painel)
@@ -458,5 +494,5 @@ var WPMotion = (function () {
     }
 
     return { info: C.wrap(info), place: C.wrap(place), placeCombo: C.wrap(placeCombo), update: C.wrap(update), readSelected: C.wrap(readSelected),
-        readGraphics: C.wrap(readGraphics), animateGraphics: C.wrap(animateGraphics), setPos: C.wrap(setPos), frame: C.wrap(frame), exportSeq: C.wrap(exportSeq) };
+        readGraphics: C.wrap(readGraphics), animateGraphics: C.wrap(animateGraphics), setPos: C.wrap(setPos), frame: C.wrap(frame), exportSeq: C.wrap(exportSeq), setItem: C.wrap(setItem) };
 })();

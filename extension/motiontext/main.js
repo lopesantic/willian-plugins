@@ -129,7 +129,7 @@
     var PROJ = { used: [], missing: [], key: "" }, pop = $("fontPop"), popFor = null, popFirst = null;
     function fontHit(f, ql) { return !ql || label(f).toLowerCase().indexOf(ql) >= 0 || f.postscript.toLowerCase().indexOf(ql) >= 0; }
     function popItem(list, f, tag) {
-        var d = document.createElement("div"); d.className = "mt-fp-item" + (popFor && S.fonts[popFor.lv].ps === f.postscript ? " on" : "");
+        var d = document.createElement("div"); d.className = "mt-fp-item" + (popFor && popCur() === f.postscript ? " on" : "");
         d.style.fontFamily = "'" + cssFamily(f.postscript) + "'"; d.style.fontWeight = cssWeight(f.postscript); d.style.fontStyle = cssStyle(f.postscript);
         d.textContent = label(f);
         if (tag) { var s = document.createElement("small"); s.textContent = tag; d.appendChild(s); }
@@ -157,25 +157,28 @@
         if (below < 200 && r.top > below) { pop.style.top = "auto"; pop.style.bottom = (window.innerHeight - r.top + 2) + "px"; pop.style.maxHeight = Math.min(320, r.top - 8) + "px"; }
         else { pop.style.bottom = "auto"; pop.style.top = (r.bottom + 2) + "px"; pop.style.maxHeight = Math.min(320, below - 8) + "px"; }
     }
-    function openPop(pick, lv) {
-        popFor = { pick: pick, lv: lv };
-        pick.select();
+    // hook (opcional): {cur() -> ps atual, pick(f)} para o seletor servir também ao editor de um texto da seleção
+    function popCur() { return popFor.hook ? popFor.hook.cur() : S.fonts[popFor.lv].ps; }
+    function openPop(pick, lv, hook) {
+        popFor = { pick: pick, lv: lv, hook: hook };
+        pick.select(); pick.dataset.typed = "";
         renderPop(""); placePop(pick); pop.classList.remove("hidden"); pop.scrollTop = 0;
         loadProjectFonts();
     }
-    function closePop() { pop.classList.add("hidden"); popFor = null; renderFonts(); }
+    function closePop() { var h = popFor && popFor.hook; pop.classList.add("hidden"); popFor = null; renderFonts(); if (h) renderEdit(); }
     function choose(f) {
         if (!popFor) return;
-        var lv = popFor.lv, pick = popFor.pick;
-        S.fonts[lv].ps = f.postscript;
+        var lv = popFor.lv, pick = popFor.pick, hook = popFor.hook;
         pop.classList.add("hidden"); popFor = null; pick.blur();
+        if (hook) { hook.pick(f); return; }
+        S.fonts[lv].ps = f.postscript;
         changed(true);
         say("Fonte " + (lv ? "de destaque" : "padrão") + ": " + label(f) + ".", "ok");
     }
-    function wirePicker(pick, lv) {
-        pick.addEventListener("focus", function () { openPop(pick, lv); });
-        pick.addEventListener("click", function () { if (!popFor) openPop(pick, lv); });
-        pick.addEventListener("input", function () { if (!popFor) openPop(pick, lv); renderPop(pick.value); });
+    function wirePicker(pick, lv, hook) {
+        pick.addEventListener("focus", function () { openPop(pick, lv, hook); });
+        pick.addEventListener("click", function () { if (!popFor) openPop(pick, lv, hook); });
+        pick.addEventListener("input", function () { if (!popFor) openPop(pick, lv, hook); pick.dataset.typed = "1"; renderPop(pick.value); });
         pick.addEventListener("keydown", function (ev) {
             if (ev.key === "Enter") { ev.preventDefault(); if (popFirst) choose(popFirst); }
             else if (ev.key === "Escape") pick.blur();
@@ -197,7 +200,7 @@
                 var r = E.projectFonts([d.path, seqFile], known);
                 PROJ.used = r.used; PROJ.missing = r.missing; PROJ.key = key;
                 renderProjFonts();
-                if (popFor) renderPop(popFor.pick.value === label(byPs[S.fonts[popFor.lv].ps] || { family: "", style: "" }) ? "" : popFor.pick.value);
+                if (popFor) renderPop(popFor.pick.dataset.typed ? popFor.pick.value : "");
             });
         }).catch(function () {}).then(function () { projBusy = null; });
         return projBusy;
@@ -679,13 +682,20 @@
             say(d.placed + " camada(s) a partir da V" + (d.firstTrack + 1) + (d.problems ? " · ajustes que falharam: " + d.problems : "") + ". Confira no Monitor de Programa.", d.problems ? "error" : "ok");
         });
     }
+    // com graphics selecionados na timeline a combinação vai neles (texto e tempo de cada um) e abre a aba Seleção para
+    // mover e editar cada texto; sem seleção, as camadas entram no cursor com os textos digitados aqui
     $("natApply").addEventListener("click", function () {
         if (!natSel) return;
-        var btn = this; btn.disabled = true;
+        var btn = this, cb = natSel; btn.disabled = true;
         var layers = natSel.layers.map(function (l, i) {
             var c = JSON.parse(JSON.stringify(l)); c.text = $("natLayers").querySelectorAll("input")[i].value || l.text; return c;
         });
-        placeNat(layers).catch(function (e) { say(e.message, "error"); }).then(function () { btn.disabled = false; });
+        readGraphicsFull().then(function (d) { return d.items.length ? d : null; }, function () { return null; }).then(function (d) {
+            if (!d) return placeNat(layers);
+            SEL.items = d.items; SEL.w = d.w; SEL.h = d.h; SEL.cur = -1; detectRoles(SEL.items);
+            var tab = document.querySelector(".mt-tabs [data-tab=sel]"); if (tab) tab.click();
+            return applyComboToSel(cb);
+        }).catch(function (e) { say(e.message, "error"); }).then(function () { btn.disabled = false; });
     });
     // gancho de teste: aplica uma combinação recriada sem cliques (porta de depuração)
     window.MT_test_combo = function (id, texts) {
@@ -1038,21 +1048,23 @@
         var W = st.parentNode.clientWidth - 24 || 280, H = Math.min(380, W * SEL.h / SEL.w), FW = H * SEL.w / SEL.h, k = FW / SEL.w;
         st.style.width = FW + "px"; st.style.height = H + "px";
         SEL.items.forEach(function (it, i) {
-            var lv = it.lv < 0 ? 0 : it.lv, fo = lv === 1 ? S.fonts[1] : S.fonts[0];
+            var lk = itemLook(it);
             var el = document.createElement("div");
-            el.className = "mt-sel-item";
+            el.className = "mt-sel-item" + (i === SEL.cur ? " cur" : "");
             el.textContent = E.plain(it.text);
             el.style.left = it.x + "%"; el.style.top = it.y + "%";
-            el.style.fontFamily = "'" + cssFamily(fo.ps) + "'"; el.style.fontWeight = cssWeight(fo.ps);
-            el.style.fontSize = Math.max(6, (lv === 2 ? S.linkSize : fo.size) * k) + "px";
-            el.style.color = [S.colors.pad, S.colors.hi, S.colors.link][lv];
-            el.title = ROLE[it.lv] + " · entra em " + fmtT(it.start);
-            dragSel(el, it, FW, H);
+            el.style.fontFamily = "'" + cssFamily(lk.ps) + "'"; el.style.fontWeight = cssWeight(lk.ps); el.style.fontStyle = cssStyle(lk.ps);
+            el.style.fontSize = Math.max(6, lk.px * k) + "px";
+            el.style.color = lk.color;
+            el.title = ROLE[it.lv] + " · entra em " + fmtT(it.start) + " · clique para editar, arraste para mover";
+            dragSel(el, it, FW, H, i);
             st.appendChild(el);
 
-            var row = document.createElement("div"); row.className = "mt-sel-row";
+            var row = document.createElement("div"); row.className = "mt-sel-row" + (i === SEL.cur ? " cur" : "");
             var tm = document.createElement("span"); tm.className = "tm"; tm.textContent = "V" + (it.track + 1) + " · " + fmtT(it.start);
             var tx = document.createElement("span"); tx.className = "t"; tx.textContent = E.plain(it.text).replace(/\n/g, " / ");
+            tx.title = "Editar este texto";
+            tx.addEventListener("click", function () { selectItem(i); });
             var rl = document.createElement("button"); rl.className = "mt-word lv" + (it.lv < 0 ? 0 : it.lv); rl.textContent = ROLE[it.lv];
             rl.addEventListener("click", function () {
                 var order = it.mixed ? [-1, 0, 1, 2] : [0, 1, 2];
@@ -1063,8 +1075,110 @@
             row.appendChild(tm); row.appendChild(tx); row.appendChild(rl); row.appendChild(kind);
             list.appendChild(row);
         });
-        $("selHint").textContent = SEL.items.length + " graphic(s), papéis " + SEL.basis + ". Arraste no quadro para posicionar; clique no papel para trocar.";
+        $("selHint").textContent = SEL.items.length + " graphic(s), papéis " + SEL.basis + ". Arraste no quadro para posicionar; clique num texto para editar só ele.";
+        renderEdit();
     }
+
+    // ---------- editor de um texto da seleção ----------
+    // Cada MotionText tem estilo próprio (fonte no fim do texto, tamanho/cor do papel dele, animação): o editor lê o que
+    // o host devolveu (style) e grava só naquele clipe (WPMotion.setItem); tempo e posição não mudam.
+    var SIZE_P = ["Tamanho padrão", "Tamanho destaque", "Tamanho ligação"], COL_P = ["Cor padrão", "Cor destaque", "Cor ligação"];
+    function toHex(c) { return "#" + c.map(function (v) { return ("0" + Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16)).slice(-2); }).join(""); }
+    // papel que vale no estilo: o da marcação do texto gravado (combinação = texto sem marcação = padrão)
+    function effLv(it) {
+        var t = String(it.style ? it.style.text : it.text).trim();
+        if (/^\*[^*]+\*$/.test(t.replace(/\*\s+\*/g, " "))) return 1;
+        if (/^_[^_]+_$/.test(t.replace(/_\s+_/g, " "))) return 2;
+        return it.style ? 0 : (it.lv < 0 ? 0 : it.lv);
+    }
+    function itemLook(it) {
+        var lv = effLv(it), st = it.style;
+        var ps = st && st.fonts && st.fonts.length ? st.fonts[lv === 1 ? 1 : 0] || st.fonts[0] : (lv === 1 ? S.fonts[1].ps : S.fonts[0].ps);
+        var px = st && st[SIZE_P[lv]] ? st[SIZE_P[lv]] * 2 : (lv === 2 ? S.linkSize : (lv === 1 ? S.fonts[1].size : S.fonts[0].size));
+        var color = st && st[COL_P[lv]] ? toHex(st[COL_P[lv]]) : [S.colors.pad, S.colors.hi, S.colors.link][lv];
+        if (st && (st["Degradê (%)"] || 0) >= 50 && st["Degradê cor 1"]) color = toHex(st["Degradê cor 1"]);   // degradê cobre a cor
+        return { lv: lv, ps: ps, px: px, color: color };
+    }
+    SEL.cur = -1;
+    function selectItem(i) { SEL.cur = i; renderSel(); var ed = $("selEdit"); if (ed) ed.scrollIntoView({ block: "nearest" }); }
+    function curItem() { return SEL.cur >= 0 ? SEL.items[SEL.cur] : null; }
+    function renderEdit() {
+        var ed = $("selEdit"), it = curItem();
+        if (!ed) return;
+        if (!it) { ed.classList.add("hidden"); return; }
+        ed.classList.remove("hidden");
+        $("selEditName").textContent = "Editando: " + E.plain(it.text).replace(/\n/g, " / ");
+        var ok = it.mt && it.style;
+        $("selEditNote").classList.toggle("hidden", !!ok); $("selEditBody").classList.toggle("hidden", !ok);
+        if (!ok) return;
+        var lk = itemLook(it), f = byPs[lk.ps];
+        var pick = $("selEditFont");
+        if (document.activeElement !== pick) { pick.value = f ? label(f) : lk.ps; pick.style.fontFamily = "'" + cssFamily(lk.ps) + "'"; }
+        var vs = $("selEditVar"); vs.innerHTML = "";
+        (f ? variants(f) : []).forEach(function (o) { var op = document.createElement("option"); op.value = o.postscript; op.textContent = o.style; vs.appendChild(op); });
+        vs.value = lk.ps; vs.disabled = vs.options.length < 2;
+        $("selEditSize").value = Math.round(lk.px); $("selEditSizeOut").textContent = Math.round(lk.px) + " px";
+        $("selEditColor").value = lk.color;
+        var an = $("selEditAnim");
+        if (!an.options.length) ANIMS.forEach(function (a, n) { var op = document.createElement("option"); op.value = String(n); op.textContent = a.name; an.appendChild(op); });
+        an.value = String(Math.round(it.style["Animação"] || 0));
+        var g = (it.style["Degradê (%)"] || 0) >= 50;
+        $("selEditGrad").checked = g;
+        $("selEditGradA").value = toHex(it.style["Degradê cor 1"] || [1, 1, 1]); $("selEditGradB").value = toHex(it.style["Degradê cor 2"] || [0.55, 0.55, 0.6]);
+        $("selEditGradA").disabled = $("selEditGradB").disabled = !g;
+        $("selEditColor").title = g ? "Com o degradê ligado a cor fica por baixo; desligue o degradê para ver a cor" : "";
+    }
+    $("selEditGrad").addEventListener("change", function () {
+        var it = curItem(); if (!it || !it.style) return;
+        pushEdit(it, { "Degradê (%)": this.checked ? 100 : 0 }); renderEdit();
+    });
+    ["selEditGradA", "selEditGradB"].forEach(function (id, n) {
+        $(id).addEventListener("input", function () {
+            var it = curItem(); if (!it || !it.style) return;
+            var p = {}; p[n ? "Degradê cor 2" : "Degradê cor 1"] = rgb(this.value); pushEdit(it, p);
+        });
+    });
+    var editTimer = null, editPending = {};
+    function pushEdit(it, params, text) {
+        if (params) Object.keys(params).forEach(function (k) { editPending[k] = params[k]; it.style[k] = params[k]; });
+        if (text) editPending.__text = text;
+        clearTimeout(editTimer);
+        editTimer = setTimeout(function () {
+            var p = editPending; editPending = {};
+            var tx = p.__text; delete p.__text;
+            WP.call("WPMotion.setItem", [JSON.stringify({ key: it.key, params: Object.keys(p).length ? p : null, text: tx || null })])
+                .then(function (d) { say("Atualizado: " + E.plain(it.text).replace(/\n/g, " ") + (d.missing ? " (sem: " + d.missing + ")" : "") + ".", "ok"); })
+                .catch(function (e) { say(e.message, "error"); });
+        }, 150);
+    }
+    function setItemFont(f) {
+        var it = curItem(); if (!it || !it.style) return;
+        var lv = effLv(it), fs2 = (it.style.fonts && it.style.fonts.length ? it.style.fonts.slice(0, 2) : [S.fonts[0].ps, S.fonts[1].ps]);
+        if (fs2.length < 2) fs2[1] = fs2[0];
+        if (lv === 1) fs2[1] = f.postscript; else fs2[0] = f.postscript;
+        if (lv !== 1 && !/[*]/.test(it.style.text)) fs2[1] = f.postscript;   // texto sem destaque: as duas iguais
+        it.style.fonts = fs2;
+        pushEdit(it, null, E.fontTag(it.style.text, fs2[0], fs2[1]));
+        renderSel();
+    }
+    wirePicker($("selEditFont"), null, { cur: function () { var it = curItem(); return it ? itemLook(it).ps : ""; }, pick: setItemFont });
+    $("selEditVar").addEventListener("change", function () { var f = byPs[this.value]; if (f) setItemFont(f); });
+    $("selEditSize").addEventListener("input", function () {
+        var it = curItem(); if (!it || !it.style) return;
+        var p = {}; p[SIZE_P[effLv(it)]] = clamp(+this.value / 2);
+        $("selEditSizeOut").textContent = this.value + " px";
+        pushEdit(it, p); renderSel();
+    });
+    $("selEditColor").addEventListener("input", function () {
+        var it = curItem(); if (!it || !it.style) return;
+        var p = {}; p[COL_P[effLv(it)]] = rgb(this.value);
+        pushEdit(it, p); renderSel();
+    });
+    $("selEditAnim").addEventListener("change", function () {
+        var it = curItem(); if (!it || !it.style) return;
+        pushEdit(it, { "Animação": +this.value });
+    });
+    $("selEditClose").addEventListener("click", function () { SEL.cur = -1; renderSel(); });
 
     // arrastar: posição em % do quadro (é o que o template usa); perto do centro gruda na linha do meio
     var posQueue = {}, posTimer = null;
@@ -1078,18 +1192,23 @@
             WP.call("WPMotion.setPos", [JSON.stringify({ items: items })]).catch(function (e) { say(e.message, "error"); });
         }, 120);
     }
-    function dragSel(el, it, FW, H) {
+    function dragSel(el, it, FW, H, idx) {
         el.addEventListener("pointerdown", function (ev) {
             ev.preventDefault(); el.setPointerCapture(ev.pointerId); el.classList.add("drag");
-            var o = { x: ev.clientX, y: ev.clientY, ix: it.x, iy: it.y };
+            var o = { x: ev.clientX, y: ev.clientY, ix: it.x, iy: it.y }, moved = false;
             function mv(e) {
+                if (Math.abs(e.clientX - o.x) + Math.abs(e.clientY - o.y) > 3) moved = true;
+                if (!moved) return;
                 it.x = Math.max(0, Math.min(100, o.ix + (e.clientX - o.x) / FW * 100));
                 it.y = Math.max(0, Math.min(100, o.iy + (e.clientY - o.y) / H * 100));
                 if (Math.abs(it.x - 50) < 1.5) it.x = 50;
                 el.style.left = it.x + "%"; el.style.top = it.y + "%";
                 pushPos(it);
             }
-            function up() { el.classList.remove("drag"); el.removeEventListener("pointermove", mv); el.removeEventListener("pointerup", up); pushPos(it); }
+            function up() {
+                el.classList.remove("drag"); el.removeEventListener("pointermove", mv); el.removeEventListener("pointerup", up);
+                if (moved) pushPos(it); else selectItem(idx);   // clique sem arrastar: edita este texto
+            }
             el.addEventListener("pointermove", mv); el.addEventListener("pointerup", up);
         });
     }
@@ -1108,8 +1227,8 @@
             .catch(function (e) { say("Sem quadro de fundo: " + e.message); });
     }
     // graphics selecionados com texto: o dos gráficos nativos do Premiere vem do projeto exportado (ver engine.nativeTexts)
-    function readGraphicsFull() {
-        return WP.call("WPMotion.readGraphics").then(function (d) {
+    function readGraphicsFull(keys) {
+        return WP.call("WPMotion.readGraphics", keys ? [JSON.stringify(keys)] : []).then(function (d) {
             if (!d.items.some(function (i) { return i.nat; })) return d;
             var f = pathMod.join(require("os").tmpdir(), "willian-mt-textos.prproj").replace(/\\/g, "/");
             return WP.call("WPMotion.exportSeq", [f]).then(function () {
@@ -1126,15 +1245,15 @@
             });
         });
     }
-    function readSel() {
-        return readGraphicsFull().then(function (d) {
-            SEL.items = d.items; SEL.w = d.w; SEL.h = d.h;
+    function readSel(keys) {
+        return readGraphicsFull(keys && keys.length ? keys : null).then(function (d) {
+            SEL.items = d.items; SEL.w = d.w; SEL.h = d.h; SEL.cur = -1;
             detectRoles(SEL.items); renderSel();
             say(d.items.length + " graphic(s) lidos da timeline.", "ok");
             return loadFrame();
         }).catch(function (e) { SEL.items = []; renderSel(); say(e.message, "error"); });
     }
-    $("selRead").addEventListener("click", readSel);
+    $("selRead").addEventListener("click", function () { readSel(); });
     $("selFrame").addEventListener("click", loadFrame);
     $("selApply").addEventListener("click", function () {
         if (!SEL.items.length) { say("Leia a seleção da timeline primeiro.", "error"); return; }
@@ -1151,8 +1270,10 @@
             d.items.forEach(function (r) {
                 SEL.items.forEach(function (it) { if (it.key === r.old) { it.key = r.key; it.mt = true; it.text = roleText(it); } });
             });
-            renderSel();
-            say(d.items.length + " graphic(s) animados, cada um no seu tempo." + (d.problems ? " Avisos: " + d.problems : ""), d.problems ? "error" : "ok");
+            // relê os MotionText novos pelas chaves (com o estilo de cada um, para o editor por texto)
+            return readSel(SEL.items.map(function (it) { return it.key; })).then(function () {
+                say(d.items.length + " graphic(s) animados, cada um no seu tempo. Clique num texto para editar só ele." + (d.problems ? " Avisos: " + d.problems : ""), d.problems ? "error" : "ok");
+            });
         });
     }
 
@@ -1185,7 +1306,10 @@
         if (!SEL.items.length) { say("Leia a seleção da timeline primeiro.", "error"); return; }
         var cb = NAT.combos[+$("selCombo").value]; if (!cb) return;
         var btn = this; btn.disabled = true;
-        refreshSeq().then(ensureTemplate).then(function (mogrt) {
+        applyComboToSel(cb).catch(function (e) { say(e.message, "error"); }).then(function () { btn.disabled = false; });
+    });
+    function applyComboToSel(cb) {
+        return refreshSeq().then(ensureTemplate).then(function (mogrt) {
             var items = comboForSelection(cb).map(function (l) {
                 var b = comboLayer(l, l.text), p = Object.assign({}, TEMPLATE_DEFAULTS, b.mt);
                 delete p["Posição horizontal (%)"]; delete p["Posição vertical (%)"];
@@ -1195,11 +1319,11 @@
             return WP.call("WPMotion.animateGraphics", [JSON.stringify({ mogrt: mogrt.replace(/\\/g, "/"), params: {}, items: items })]);
         }).then(function (d) {
             d.items.forEach(function (r) { SEL.items.forEach(function (it) { if (it.key === r.old) { it.key = r.key; it.mt = true; } }); });
-            return readSel().then(function () {
-                say("Combinação aplicada em " + d.items.length + " graphic(s), cada um no seu tempo." + (d.problems ? " Avisos: " + d.problems : ""), d.problems ? "error" : "ok");
+            return readSel(SEL.items.map(function (it) { return it.key; })).then(function () {
+                say("Combinação aplicada em " + d.items.length + " graphic(s), cada um no seu tempo. Arraste para mover e clique num texto para editar só ele." + (d.problems ? " Avisos: " + d.problems : ""), d.problems ? "error" : "ok");
             });
-        }).catch(function (e) { say(e.message, "error"); }).then(function () { btn.disabled = false; });
-    });
+        });
+    }
 
     // gancho para testes automáticos pela porta de depuração (carregar SRT sem arrastar arquivo)
     window.MT_test = { readSrtFile: readSrtFile, state: function () { return S; }, sel: SEL, readSel: readSel, renderSel: renderSel };

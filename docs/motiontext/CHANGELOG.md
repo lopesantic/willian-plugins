@@ -9,6 +9,8 @@
   salvo e da sequência aberta) e aviso das que o projeto usa mas não estão instaladas.
 - Aba Seleção: anima os graphics selecionados no tempo da timeline, inclusive texto nativo do Premiere (lido do projeto
   exportado, o ExtendScript não lê esse texto) e MOGRT de terceiros (ficam desligados, o MotionText entra acima).
+- Combinações aplicadas nos graphics selecionados também pela aba Combinações; depois, na aba Seleção, cada texto se
+  arrasta e se edita sozinho (fonte, variação, tamanho, cor, degradê, animação), direto no clipe.
 - Combinações: layout automático (camadas juntas na tela empilhadas e centralizadas, principal maior) e "Aplicar combinação"
   nos graphics selecionados.
 - Estilos corrigidos no template: degradê e luz no espaço da composição, contorno por trás da letra, sombra e bordas

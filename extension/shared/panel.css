@@ -366,3 +366,13 @@ body > .status { position: sticky; bottom: 6px; z-index: 20; box-shadow: 0 6px 1
 
 .mt-font .fontvar { width: 100%; margin-top: 4px; }
 .mt-font .fontvar:disabled { opacity: .5; }
+
+/* MotionText · editor de um texto da seleção */
+.mt-sel-edit { margin: 8px 0; padding: 8px; border: 1px solid rgba(236,72,153,.45); border-radius: 8px; background: rgba(236,72,153,.06); }
+.mt-sel-edit.hidden { display: none; }
+.mt-sel-edit-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.mt-sel-edit-head b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.mt-sel-edit .fontpick, .mt-sel-edit .fontvar, .mt-sel-edit select { width: 100%; margin-bottom: 4px; }
+.mt-sel-item.cur { border-color: #ec4899; border-style: solid; }
+.mt-sel-row.cur { background: rgba(236,72,153,.12); }
+.mt-sel-row .t { cursor: pointer; }
