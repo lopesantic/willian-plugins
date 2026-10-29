@@ -265,7 +265,7 @@
     }
 
     // biblioteca de animações
-    var CATS = ["Todas", "Favoritos", "Entrada", "Por palavra", "Por caractere", "Por linha", "Destaque", "Natasha"];
+    var CATS = ["Todas", "Favoritos", "Entrada", "Por palavra", "Por caractere", "Por linha", "Destaque", "Will Letterings"];
     function renderCats() {
         var box = $("cats"); box.innerHTML = "";
         CATS.forEach(function (c) {
@@ -278,15 +278,15 @@
     function renderAnimGrid() {
         var grid = $("animGrid"); grid.innerHTML = "";
         previews = previews.filter(function (p) { return p.kind !== "card"; });
-        if (S.cat === "Natasha") {
+        if (S.cat === "Will Letterings") {
             // letterings do pack: aplicados com o texto do painel e o estilo próprio de cada um
             (NAT.anims || []).forEach(function (a) {
                 var card = document.createElement("div");
                 card.className = "mt-card" + (S.useNat && S.natAnim === a.file ? " active" : "");
                 card.innerHTML = '<div class="mt-view"><img class="mt-thumb" alt=""></div><div class="mt-name"></div>';
-                card.querySelector("img").src = "natasha/" + a.thumb;
+                card.querySelector("img").src = "letterings/" + a.thumb;
                 card.querySelector(".mt-name").textContent = a.name;
-                card.addEventListener("click", function () { S.useNat = true; S.natAnim = a.file; renderAnimGrid(); save(); say("Lettering Natasha \"" + a.name + "\": \"Aplicar no cursor\" usa o texto do painel com o estilo dele.", "ok"); });
+                card.addEventListener("click", function () { S.useNat = true; S.natAnim = a.file; renderAnimGrid(); save(); say("Will Letterings \"" + a.name + "\": \"Aplicar no cursor\" usa o texto do painel com o estilo dele.", "ok"); });
                 grid.appendChild(card);
             });
             return;
@@ -373,8 +373,8 @@
         });
     }
 
-    // ---------- pack Natasha (combinações e letterings prontos, cópia autorizada pelo Willian) ----------
-    var NAT = { anims: [], combos: [] }, natFolder = WP.extensionRoot() + "/motiontext/natasha", natSel = null;
+    // ---------- Will Letterings (combinações e letterings prontos, cópia autorizada pelo Willian) ----------
+    var NAT = { anims: [], combos: [] }, natFolder = WP.extensionRoot() + "/motiontext/letterings", natSel = null;
     try { NAT = JSON.parse(require("fs").readFileSync(natFolder + "/combos.json", "utf8")); } catch (e) {}
     document.querySelectorAll("#comboSrc button").forEach(function (b) {
         b.addEventListener("click", function () {

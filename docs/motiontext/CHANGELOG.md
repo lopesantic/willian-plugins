@@ -1,8 +1,8 @@
 # MotionText — changelog
 
 ## 0.2.0 (Willian Plugins 1.6.0) — 28/10/2026
-- Pack Natasha Editora: 31 combinações prontas com o estilo exato de cada camada (capturado do projeto
-  "Combinações prontas") e os 14 letterings do pack na categoria "Natasha" das Animações.
+- Will Letterings: 31 combinações prontas com o estilo exato de cada camada (capturado do projeto
+  "Combinações prontas") e os 14 letterings do pack na categoria "Will Letterings" das Animações.
 - "Usar meu texto" distribui o texto pelas camadas; camada que não cabe é reduzida até a margem.
 - Lote SRT: blocos de 25, reaproveitamento do item importado e só os parâmetros que mudam (3x mais rápido).
 - SRT: numeração dos avisos pelo bloco do arquivo; legendas sobrepostas encostam em vez de se cobrirem.

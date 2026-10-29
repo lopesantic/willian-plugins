@@ -160,7 +160,7 @@ var WPMotion = (function () {
             missing: missing.join("|") });
     }
 
-    // Combinação pronta (pack Natasha): várias camadas, cada uma num MOGRT, empilhadas acima de tudo o que
+    // Combinação pronta (Will Letterings): várias camadas, cada uma num MOGRT, empilhadas acima de tudo o que
     // existe no intervalo (texto nunca fica escondido embaixo de B-roll). Cada camada recebe exatamente os
     // valores capturados da combinação original (por índice do parâmetro, conferindo o nome) e o texto novo.
     // cfg: {start, folder, layers:[{file, delay, dur, layer, pos, scale, text, params:[{i,n,k,v}]}]}

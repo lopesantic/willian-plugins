@@ -1,11 +1,11 @@
-// Monta extension/motiontext/natasha/ a partir do Pack de Letterings Natasha Editora (licença do Willian,
-// cópia autorizada por ele em 28/10/2026; só no instalador e no repositório privado, nunca público):
+// Monta extension/motiontext/letterings/ (Will Letterings) a partir do pack de letterings licenciado pelo Willian
+// (cópia autorizada por ele em 28/10/2026; só no instalador e no repositório privado, nunca público):
 //  - copia os .mogrt e as miniaturas (thumb.png de dentro de cada .mogrt);
 //  - transforma a captura do projeto "Combinações prontas" (t34_capture.jsx) em combos.json.
-// Uso: node tools/motiontext/build_natasha.js <pasta do pack> <natasha_combos.json capturado> <pasta com os .mogrt extraídos>
+// Uso: node tools/motiontext/build_letterings.js <pasta do pack> <combos capturados .json> <pasta com os .mogrt extraídos>
 const fs = require("fs"), path = require("path");
 const [packDir, capture, extracted] = process.argv.slice(2);
-const OUT = path.join(__dirname, "..", "..", "extension", "motiontext", "natasha");
+const OUT = path.join(__dirname, "..", "..", "extension", "motiontext", "letterings");
 fs.mkdirSync(path.join(OUT, "thumbs"), { recursive: true });
 
 // 1) MOGRTs e miniaturas

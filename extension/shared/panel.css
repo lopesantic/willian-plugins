@@ -297,7 +297,7 @@ textarea#text {
 .mt-preset .star { background: none; border: 0; padding: 0 2px; }
 .tag.warn { color: var(--error); }
 
-/* MotionText: pack Natasha */
+/* MotionText: Will Letterings */
 .mt-natview { position: relative; }
 .mt-natlayer { position: absolute; transform: translate(-50%, -50%); white-space: pre; line-height: 1; text-align: center; }
 .mt-thumb { max-height: 64px; max-width: 100%; border-radius: 6px; object-fit: cover; }
