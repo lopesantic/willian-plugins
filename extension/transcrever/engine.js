@@ -284,6 +284,8 @@
                     "-bs", "1", "-bo", "1",
                     "-dtw", MODES[opts.mode || "golfinho"].dtw, "-nfa"];
         if (opts.translate) args.push("-tr");
+        // texto de orientação (ex.: cheio de hesitações, para o Whisper não "limpar" falsos começos e repetições)
+        if (opts.prompt) args.push("--prompt", opts.prompt);
         return new Promise(function (resolve, reject) {
           var p = cp.spawn(cli, args, { cwd: path.dirname(cli), windowsHide: true });
           var errTail = "", head = "";

@@ -395,3 +395,33 @@ canvas#ruler { width: 100%; height: 90px; }
 .mt-grid.mt-grid-sm .mt-card .mt-name { font-size: 10px; }
 #fontsBox > summary { cursor: pointer; }
 #fontsBox:not([open]) { padding-bottom: 6px; }
+
+/* AutoCut · Erros de Gravação */
+.ac-tabs { margin-bottom: 8px; }
+.ac-totals { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; margin-bottom: 6px; }
+.ac-totals b { font-size: 15px; color: #fff; }
+.ac-totals .c-alta b { color: #4ade80; } .ac-totals .c-rev b { color: #fbbf24; } .ac-totals .c-sel b { color: #f472b6; }
+.ac-filter { flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.ac-occs { display: flex; flex-direction: column; gap: 8px; max-height: 520px; overflow-y: auto; padding-right: 2px; }
+.ac-occ { border: 1px solid rgba(255,255,255,.1); border-left: 3px solid #fbbf24; border-radius: 8px; padding: 8px; background: rgba(255,255,255,.02); }
+.ac-occ.conf-alta { border-left-color: #4ade80; } .ac-occ.conf-baixa { border-left-color: #94a3b8; }
+.ac-occ.ignored { opacity: .55; }
+.ac-occ-head { font-size: 12px; margin-bottom: 6px; }
+.ac-badge { font-size: 10px; padding: 1px 6px; border-radius: 9px; text-transform: uppercase; letter-spacing: .04em; margin-left: 4px; }
+.ac-badge.alta { background: rgba(74,222,128,.18); color: #4ade80; } .ac-badge.media { background: rgba(251,191,36,.18); color: #fbbf24; }
+.ac-badge.baixa { background: rgba(148,163,184,.2); color: #cbd5e1; }
+.ac-att { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; padding: 5px 4px; border-radius: 6px; font-size: 12px; }
+.ac-att.sel { background: rgba(239,68,68,.12); }
+.ac-att.sel .ac-att-text { text-decoration: line-through; text-decoration-color: rgba(239,68,68,.7); }
+.ac-att.best { box-shadow: inset 2px 0 0 #4ade80; }
+.ac-att-text { flex: 1; min-width: 140px; }
+.ac-att-text .note { margin: 2px 0 0; font-size: 10.5px; }
+.ac-play { min-width: 28px; flex: 0 0 auto; }
+.ac-adj { display: flex; gap: 6px; width: 100%; padding-left: 58px; font-size: 10.5px; color: var(--faint); }
+.ac-adj input { width: 64px; padding: 1px 4px; font-size: 10.5px; }
+.ac-why { margin: 6px 0 4px; }
+.ac-acts { flex-wrap: wrap; gap: 4px; }
+.ac-prevlist { max-height: 160px; overflow-y: auto; font-size: 11.5px; margin: 6px 0; }
+.ac-prev-row { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+.ac-learn { max-height: 180px; overflow-y: auto; font-size: 11.5px; margin: 6px 0; }
+.ac-learn-row { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.05); }

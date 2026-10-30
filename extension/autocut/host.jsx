@@ -129,18 +129,17 @@ var WPAutoCut = (function () {
 
     // regionsJson: '[{"start":s,"end":e}, ...]' em segundos da sequência.
     // mode: "lift" (deixa buracos), "ripple" (fecha os buracos) ou "razor" (só corta).
-    // backup: true guarda uma cópia "(backup AutoCut)" antes; os cortes vão sempre na sequência aberta.
+    // Os cortes vão sempre na sequência aberta; antes, uma cópia "(antes do AutoCut)" fica guardada na pasta
+    // "Sharp Frame · desfazer" para o botão Desfazer (o parâmetro backup ficou só por compatibilidade).
     function cut(regionsJson, mode, backup) {
         if (mode !== "lift" && mode !== "ripple" && mode !== "razor") return C.fail("Modo inválido: " + mode);
         var regions = eval("(" + regionsJson + ")");
-        if (!regions || !regions.length) return C.fail("Nenhum silêncio para cortar.");
+        if (!regions || !regions.length) return C.fail("Nenhum trecho para cortar.");
         var seq = app.project.activeSequence;
         if (!seq) return C.fail("Nenhuma sequência ativa.");
-        var before = secs(seq.end), backupName = "";
-        if (backup) {
-            backupName = C.backupActive(LABEL);
-            if (!backupName) return C.fail("Não consegui fazer o backup da sequência.");
-        }
+        var before = secs(seq.end), backupName = C.snapshotActive(LABEL);
+        if (!backupName) return C.fail("Não consegui guardar a cópia para desfazer; nada foi cortado.");
+        seq = app.project.activeSequence;
         app.enableQE();
         var qeSeq = qe.project.getActiveSequence();
         var list = unlockedTracks(seq);
@@ -178,8 +177,19 @@ var WPAutoCut = (function () {
         });
     }
 
-    // Desfaz pelo backup "(backup AutoCut)"; sem backup, o caminho é o Ctrl+Z do Premiere.
-    function undo() { return C.restoreBackup(LABEL); }
+    // Desfaz pela cópia "(antes do AutoCut)"; cortes de versões antigas, pelo "(backup AutoCut)" se existir.
+    function undo() {
+        var r = C.undoSnapshot(LABEL);
+        if (String(r).indexOf('"ok":true') >= 0) return r;
+        var old = C.restoreBackup(LABEL);
+        return String(old).indexOf('"ok":true') >= 0 ? old : r;
+    }
 
-    return { tracks: C.tracks, exportAudio: C.exportAudio, cut: C.wrap(cut), undo: C.wrap(undo) };
+    // nome do projeto e da sequência (o projeto vira o nome padrão do perfil de aprendizado dos Erros de Gravação)
+    function info() {
+        var seq = app.project.activeSequence;
+        return C.out({ ok: true, project: String(app.project.name).replace(/\.prproj$/i, ""), sequence: seq ? seq.name : "" });
+    }
+
+    return { tracks: C.tracks, exportAudio: C.exportAudio, cut: C.wrap(cut), undo: C.wrap(undo), info: C.wrap(info) };
 })();

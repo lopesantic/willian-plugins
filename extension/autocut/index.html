@@ -8,64 +8,119 @@
 <body>
   <header class="wp-header">
     <div class="wp-mark">S</div>
-    <div><div class="wp-title">AutoCut</div><div class="wp-sub">Corte de silêncio</div></div>
+    <div><div class="wp-title">AutoCut</div><div class="wp-sub">Silêncios e erros de gravação</div></div>
   </header>
+
+  <div class="row seg ac-tabs">
+    <button data-sec="sil" class="ghost active">Silêncios</button>
+    <button data-sec="err" class="ghost">Erros de Gravação</button>
+  </div>
 
   <section class="card">
     <label class="field">Áudio de referência
       <select id="track"><option value="all">Todas as faixas (mixagem)</option></select>
     </label>
-    <button id="analyze" class="primary">Analisar áudio</button>
   </section>
 
-  <div id="results" class="hidden">
-    <section class="card">
-      <h2>Silêncios</h2>
-      <canvas id="wave" height="110"></canvas>
-      <div class="ac-overview" id="overview"><i id="viewport"></i></div>
-      <div class="row ac-zoom">
-        <button class="ghost chip" id="zoomOut" title="Afastar">−</button>
-        <button class="ghost chip" id="zoomIn" title="Aproximar">+</button>
-        <button class="ghost chip" id="zoomFit" title="Ver tudo">Ajustar</button>
-        <span class="note ac-hint">roda do mouse = zoom · arrastar = mover · duplo clique = ver tudo</span>
-      </div>
-      <div class="summary" id="summary"></div>
-      <div class="row presets">
-        <button data-preset="natural" class="ghost">Natural</button>
-        <button data-preset="ritmado" class="ghost">Ritmado</button>
-        <button data-preset="rapido" class="ghost">Rápido</button>
-      </div>
-    </section>
+  <!-- ===== silêncios ===== -->
+  <div id="sec-sil">
+    <button id="analyze" class="primary">Analisar áudio</button>
+    <div id="results" class="hidden">
+      <section class="card">
+        <h2>Silêncios</h2>
+        <canvas id="wave" height="110"></canvas>
+        <div class="ac-overview" id="overview"><i id="viewport"></i></div>
+        <div class="row ac-zoom">
+          <button class="ghost chip" id="zoomOut" title="Afastar">−</button>
+          <button class="ghost chip" id="zoomIn" title="Aproximar">+</button>
+          <button class="ghost chip" id="zoomFit" title="Ver tudo">Ajustar</button>
+          <span class="note ac-hint">roda do mouse = zoom · arrastar = mover · duplo clique = ver tudo</span>
+        </div>
+        <div class="summary" id="summary"></div>
+        <div class="row presets">
+          <button data-preset="natural" class="ghost">Natural</button>
+          <button data-preset="ritmado" class="ghost">Ritmado</button>
+          <button data-preset="rapido" class="ghost">Rápido</button>
+        </div>
+      </section>
 
-    <section class="card">
-      <h2>Ajustes</h2>
-      <label class="field">Limiar <output id="thresholdOut"></output>
-        <input type="range" id="threshold" min="-60" max="-10" step="1">
-      </label>
-      <label class="field">Silêncio mínimo <output id="minOut"></output>
-        <input type="range" id="min" min="100" max="3000" step="10">
-      </label>
-      <label class="field">Folga nas bordas <output id="padOut"></output>
-        <input type="range" id="pad" min="0" max="500" step="10">
-      </label>
-      <label class="field">Modo
-        <select id="mode">
-          <option value="ripple">Fechar os buracos (ripple)</option>
-          <option value="lift">Deixar os buracos</option>
-          <option value="razor">Só cortar, sem remover</option>
-        </select>
-      </label>
-      <label class="check"><input type="checkbox" id="backup"> Fazer backup antes (guarda uma cópia da sequência)</label>
-    </section>
+      <section class="card">
+        <h2>Ajustes</h2>
+        <label class="field">Limiar <output id="thresholdOut"></output>
+          <input type="range" id="threshold" min="-60" max="-10" step="1">
+        </label>
+        <label class="field">Silêncio mínimo <output id="minOut"></output>
+          <input type="range" id="min" min="100" max="3000" step="10">
+        </label>
+        <label class="field">Folga nas bordas <output id="padOut"></output>
+          <input type="range" id="pad" min="0" max="500" step="10">
+        </label>
+        <label class="field">Modo
+          <select id="mode">
+            <option value="ripple">Fechar os buracos (ripple)</option>
+            <option value="lift">Deixar os buracos</option>
+            <option value="razor">Só cortar, sem remover</option>
+          </select>
+        </label>
+      </section>
 
-    <button id="cut" class="primary">Cortar silêncios</button>
-    <button id="undo" class="ghost">Voltar ao backup</button>
+      <button id="cut" class="primary">Cortar silêncios</button>
+    </div>
   </div>
 
+  <!-- ===== erros de gravação ===== -->
+  <div id="sec-err" class="hidden">
+    <section class="card">
+      <div class="row mt-row3">
+        <label class="field">Cliente ou projeto (aprendizado)
+          <input type="search" id="errProfile" list="errProfiles" placeholder="Nome do cliente…">
+        </label>
+        <label class="field">Transcrição
+          <select id="errMode"><option value="golfinho">Golfinho (rápida)</option><option value="baleia">Baleia (mais precisa)</option></select>
+        </label>
+      </div>
+      <datalist id="errProfiles"></datalist>
+      <div class="note" id="errLearn"></div>
+      <div class="row">
+        <button class="ghost chip" id="errLearnShow">Ver decisões aprendidas</button>
+        <button class="ghost chip" id="errLearnReset">Apagar aprendizado deste cliente</button>
+      </div>
+      <div class="ac-learn hidden" id="errLearnList"></div>
+      <label class="check"><input type="checkbox" id="errAuto" checked> Já marcar para remover as de alta confiança</label>
+      <label class="check"><input type="checkbox" id="errModel"> Usar o modelo local nos casos duvidosos <span class="note" id="errModelInfo"></span></label>
+      <div class="row">
+        <button class="primary" id="errAnalyze">Analisar gravação</button>
+        <button class="ghost" id="errRefresh" title="Refaz a análise sem transcrever de novo (usa o aprendizado mais recente)">Atualizar análise</button>
+      </div>
+      <div class="progress hidden" id="errProg"><i></i></div>
+    </section>
+
+    <section class="card hidden" id="errResults">
+      <div class="ac-totals" id="errTotals"></div>
+      <div class="row ac-filter">
+        <button class="ghost chip active" data-f="all">Todas</button>
+        <button class="ghost chip" data-f="alta">Alta</button>
+        <button class="ghost chip" data-f="revisar">Revisar</button>
+        <button class="ghost chip" data-f="sel">Marcadas</button>
+        <button class="ghost chip" id="errAcceptAll" title="Marca para remover as tentativas recomendadas de todas as ocorrências deste filtro">Marcar as recomendadas</button>
+      </div>
+      <div class="ac-occs" id="errList"></div>
+    </section>
+
+    <section class="card hidden" id="errPreview">
+      <h2>Prévia dos cortes</h2>
+      <div class="summary" id="errPrevSum"></div>
+      <div class="ac-prevlist" id="errPrevList"></div>
+      <button class="primary" id="errApply">Aplicar cortes</button>
+    </section>
+    <audio id="errAudio" preload="auto"></audio>
+  </div>
+
+  <button id="undo" class="ghost">Desfazer cortes</button>
   <div class="status" id="status">Abra a sequência e clique em Analisar.</div>
-  <p class="note">Os cortes vão na sequência aberta. Com backup, uma cópia "(backup AutoCut)" fica guardada; sem backup, desfaça com Ctrl+Z.</p>
 
   <script src="../shared/host-bridge.js"></script>
   <script src="main.js"></script>
+  <script src="errors.js"></script>
 </body>
 </html>

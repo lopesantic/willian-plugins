@@ -13,7 +13,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var trackSel = $("track"), analyzeBtn = $("analyze"), results = $("results");
   var canvas = $("wave"), summary = $("summary"), statusEl = $("status");
-  var threshold = $("threshold"), min = $("min"), pad = $("pad"), mode = $("mode"), backup = $("backup");
+  var threshold = $("threshold"), min = $("min"), pad = $("pad"), mode = $("mode");
   var cutBtn = $("cut"), undoBtn = $("undo");
   var analysis = null, regions = [];
 
@@ -32,12 +32,11 @@
     min.value = s.min || 500;
     pad.value = s.pad || 100;
     mode.value = s.mode || "ripple";
-    backup.checked = !!s.backup;
   }
 
   function saveSettings() {
     try {
-      localStorage.setItem(STORE, JSON.stringify({ min: +min.value, pad: +pad.value, mode: mode.value, backup: backup.checked }));
+      localStorage.setItem(STORE, JSON.stringify({ min: +min.value, pad: +pad.value, mode: mode.value }));
     } catch (e) {}
   }
 
@@ -215,11 +214,10 @@
     if (!regions.length) { setStatus("Nenhum silêncio com esses ajustes.", "error"); return; }
     setBusy(true);
     setStatus("Cortando " + regions.length + " silêncios…");
-    WP.call("WPAutoCut.cut", [JSON.stringify(regions), mode.value, backup.checked])
+    WP.call("WPAutoCut.cut", [JSON.stringify(regions), mode.value, false])
       .then(function (d) {
         var gapsMsg = d.mode === "ripple" ? (d.gaps ? " Atenção: " + d.gaps + " emenda(s) ficaram com espaço." : " Sem espaços nas emendas.") : "";
-        setStatus(d.cuts + " cortes: " + fmt(d.before) + " → " + fmt(d.after) + "." + gapsMsg +
-          (d.backup ? " Backup em \"" + d.backup + "\"." : " Sem backup: Ctrl+Z desfaz."), d.gaps ? "error" : "ok");
+        setStatus(d.cuts + " cortes: " + fmt(d.before) + " → " + fmt(d.after) + "." + gapsMsg + " Desfazer cortes volta como estava.", d.gaps ? "error" : "ok");
       })
       .catch(function (e) { setStatus(e.message, "error"); })
       .then(function () { setBusy(false); });
@@ -228,7 +226,10 @@
   undoBtn.addEventListener("click", function () {
     setBusy(true);
     WP.call("WPAutoCut.undo")
-      .then(function (d) { setStatus("\"" + d.sequence + "\" voltou ao backup.", "ok"); })
+      .then(function (d) {
+        setStatus("Cortes desfeitos: \"" + d.sequence + "\" voltou como estava" + (d.kept ? ". A versão cortada ficou como \"" + d.kept + "\" na pasta Sharp Frame · desfazer." : "."), "ok");
+        if (window.ACErrors) window.ACErrors.afterUndo();
+      })
       .catch(function (e) { setStatus(e.message, "error"); })
       .then(function () { setBusy(false); });
   });
@@ -243,7 +244,6 @@
   });
   [threshold, min, pad].forEach(function (el) { el.addEventListener("input", recompute); });
   mode.addEventListener("change", saveSettings);
-  backup.addEventListener("change", saveSettings);
   window.addEventListener("resize", function () { if (analysis) draw(); });
 
   loadSettings();

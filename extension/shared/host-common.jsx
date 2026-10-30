@@ -132,6 +132,64 @@ var WPCommon = (function () {
         return out({ ok: true, sequence: name });
     }
 
+    // ---------- desfazer sem depender de backup marcado ----------
+    // Antes de cortar, guarda uma cópia "<nome> (antes do <label>)" na pasta "Sharp Frame · desfazer" e continua na
+    // original. Desfazer não apaga nada: a versão cortada vira "<nome> (cortes desfeitos)" e vai para a mesma pasta; a
+    // cópia guardada volta com o nome original para onde a cortada estava e é aberta.
+    var UNDO_BIN = "Sharp Frame · desfazer";
+    function undoBin() {
+        var root = app.project.rootItem;
+        for (var i = 0; i < root.children.numItems; i++) {
+            var it = root.children[i];
+            if (it.type === ProjectItemType.BIN && it.name === UNDO_BIN) return it;
+        }
+        return root.createBin(UNDO_BIN);
+    }
+    function parentBinOf(bin, nodeId) {
+        for (var i = 0; i < bin.children.numItems; i++) {
+            var c = bin.children[i];
+            if (c.nodeId === nodeId) return bin;
+            if (c.type === ProjectItemType.BIN) { var f = parentBinOf(c, nodeId); if (f) return f; }
+        }
+        return null;
+    }
+    function snapshotActive(label) {
+        var seq = app.project.activeSequence;
+        if (!seq) return null;
+        var before = {};
+        for (var i = 0; i < app.project.sequences.numSequences; i++) before[app.project.sequences[i].sequenceID] = true;
+        var name = copyName(seq.name, "antes do " + label);
+        seq.clone();
+        for (var j = 0; j < app.project.sequences.numSequences; j++) {
+            var s = app.project.sequences[j];
+            if (before[s.sequenceID]) continue;
+            s.name = name;
+            try { s.projectItem.moveBin(undoBin()); } catch (e) {}
+            app.project.openSequence(seq.sequenceID);
+            return name;
+        }
+        return null;
+    }
+    function undoSnapshot(label) {
+        var seq = app.project.activeSequence;
+        if (!seq) return fail("Nenhuma sequência ativa.");
+        var name = seq.name, re = suffixRe("antes do " + label), snap = null, best = 0;
+        for (var i = 0; i < app.project.sequences.numSequences; i++) {
+            var s = app.project.sequences[i], m = s.name.match(re);
+            if (s.sequenceID === seq.sequenceID || !m || s.name.replace(re, "") !== name) continue;
+            var n = m[2] ? Number(m[2]) : 1;   // a mais recente tem o maior número ("... 2", "... 3")
+            if (n > best) { best = n; snap = s; }
+        }
+        if (!snap) return fail("Não há cortes do " + label + " para desfazer nesta sequência.");
+        var home = parentBinOf(app.project.rootItem, seq.projectItem.nodeId);
+        seq.name = copyName(name, "cortes desfeitos");
+        try { seq.projectItem.moveBin(undoBin()); } catch (e) {}
+        snap.name = name;
+        try { if (home) snap.projectItem.moveBin(home); } catch (e2) {}
+        app.project.openSequence(snap.sequenceID);
+        return out({ ok: true, sequence: name, kept: seq.name });
+    }
+
     function deselectAll(seq) {
         var sel = seq.getSelection();
         for (var i = 0; i < sel.length; i++) sel[i].setSelected(false, true);
@@ -150,6 +208,7 @@ var WPCommon = (function () {
         TICKS: TICKS, out: out, fail: fail, secs: secs, timeAt: timeAt, wrap: wrap,
         tracks: wrap(tracks), exportAudio: wrap(exportAudio),
         suffixRe: suffixRe, backupActive: backupActive, restoreBackup: wrap(restoreBackup),
+        snapshotActive: snapshotActive, undoSnapshot: wrap(undoSnapshot),
         deselectAll: deselectAll, linkClips: linkClips
     };
 })();
