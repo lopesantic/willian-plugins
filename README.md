@@ -18,7 +18,7 @@ Desde a 1.8.0 os painéis separados ("Willian - Margens", "Willian - AutoCut"...
 | Painel | Faz | Estado |
 |---|---|---|
 | Margens | guia de área segura (Reels, TikTok, Shorts) numa faixa no topo da sequência 9:16 | 0.1.0 |
-| AutoCut | corta os silêncios numa cópia da sequência "(AutoCut)": lift, ripple ou só razor | 0.1.0 |
+| AutoCut | Silêncios: corta numa passada só, sem lascas (estalos e sons isolados não interrompem a pausa), protege fim de palavra e respiração, cortes no quadro. Erros de Gravação: acha recomeços, frases regravadas, correções, repetições e hesitações, sugere a melhor versão e aprende com as suas decisões por cliente (modelo local opcional). Desfazer cortes volta a sequência como estava | 1.10.0 |
 | BeatMarker | detecta os trechos de tempo (BPM diferente em cada parte da música) e os tipos de batida: tempo forte, batidas do tempo, graves (bumbo), médios (caixa/palma), agudos (chimbal) e impactos; cada tipo com a sua cor e o seu nome no marcador, trechos ligáveis, sensibilidade, ÷2/×2 | 0.2.0 |
 | AutoSoundFX | um som por cor de marcador (volume, âncora início/fim, ajuste, faixa, trecho), biblioteca de sons, desfazer | 0.1.0 |
 | AutoJCut | J-cuts entre takes colados (V1/A1) numa cópia "(J-Cut)", áudios alternando A1/A2 | 0.1.0 |

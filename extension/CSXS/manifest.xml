@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Sharp Frame: um painel só (hub) com todas as ferramentas em abas. Sem login, sem servidor.
      O ID interno continua com.willian.plugins para o instalador atualizar por cima da instalação antiga. -->
-<ExtensionManifest Version="7.0" ExtensionBundleId="com.willian.plugins" ExtensionBundleVersion="1.9.1" ExtensionBundleName="Sharp Frame" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ExtensionManifest Version="7.0" ExtensionBundleId="com.willian.plugins" ExtensionBundleVersion="1.10.0" ExtensionBundleName="Sharp Frame" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ExtensionList>
     <Extension Id="com.willian.plugins.hub" Version="0.2.0"/>
   </ExtensionList>
