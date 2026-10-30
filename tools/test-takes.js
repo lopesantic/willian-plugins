@@ -95,6 +95,12 @@ var rx = T.analyze(script([["Eu eu acho que funciona bem.", 0.6], ["Então ãh v
 check("“eu eu” vira repetição (revisão)", rx.occurrences.some(function (o) { return o.category === "repeticao" && o.confidence === "media"; }), show(rx));
 check("“ãh” vira hesitação (revisão)", rx.occurrences.some(function (o) { return o.category === "hesitacao"; }), show(rx));
 
+console.log("Fala real — falsos positivos vistos na palestra de teste");
+var ry = T.analyze(script([["Eu tenho um escritório e um sócio.", 0.8], ["Fiz investimento pra mim, investimento em conhecimento.", 0.8]]));
+check("“um” (artigo) não é hesitação", !ry.occurrences.some(function (o) { return o.category === "hesitacao"; }), show(ry));
+check("enumeração só com vírgula fica em baixa e não é marcada", ry.occurrences.filter(function (o) { return o.category === "correcao"; })
+  .every(function (o) { return o.confidence === "baixa" && !o.attempts.some(function (a) { return a.selected; }); }), show(ry));
+
 console.log("\n" + pass + " ok, " + fail + " falha(s)");
 fs.rmSync(tmp, { recursive: true, force: true });
 process.exit(fail ? 1 : 0);

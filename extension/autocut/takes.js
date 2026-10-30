@@ -19,7 +19,7 @@
   // repetição que costuma ser ênfase, não erro ("muito, muito importante")
   var INTENSIFIERS = ("muito bem super mais nunca sempre nao sim isso vai ja agora olha calma pronto ta tchau oi obrigado " +
     "obrigada vem bora rapido devagar").split(" ");
-  var FILLER = /^(a+h+n?|a+n+h+|e+h+|e+r+|h+u+m+|h+m+|u+h+m*|u+m+|a+ham|hã|ã+h*|é+\.\.\.)$/i;
+  var FILLER = /^(a+h+n?|a+n+h+|e+h+|e+r+|h+u+m+|h+m+|u+h+m*|u+m{2,}|a+ham|hã|ã+h*|é+\.\.\.)$/i;
 
   function norm(w) {
     return String(w).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "");
@@ -244,12 +244,14 @@
           if (!brk) break;
           var cutWords = W.slice(i, j), ell = /(\.\.\.|…)$/.test(prev.t);
           if (profile && habit(profile, W[i].n)) break;
-          var o = { id: ++id, category: "correcao", label: CAT.correcao, confidence: ell ? "alta" : "media", start: round(W[i].s), end: round(W[Math.min(W.length - 1, j + cutWords.length)].e),
+          // só vírgula, sem pausa de verdade, costuma ser enumeração ("investimento pra mim, investimento em conhecimento")
+          var conf = ell ? "alta" : W[j].s - prev.e >= 0.3 ? "media" : "baixa";
+          var o = { id: ++id, category: "correcao", label: CAT.correcao, confidence: conf, start: round(W[i].s), end: round(W[Math.min(W.length - 1, j + cutWords.length)].e),
             attempts: [{ start: round(W[i].s), end: round(W[j].s), text: cutWords.map(function (w) { return w.t; }).join(" "), full: p.text, remove: true, keep: false, why: "dito de novo logo em seguida", abandoned: true },
                        { start: round(W[j].s), end: round(W[Math.min(W.length - 1, j + cutWords.length - 1)].e), text: W.slice(j, j + cutWords.length).map(function (w) { return w.t; }).join(" "), full: p.text, remove: false, keep: true, why: "versão corrigida (fica)" }],
             best: 1, reason: "“" + W[i].t + "” recomeça logo depois" + (ell ? " de reticências" : " de uma vírgula ou pausa") + ": parece correção. Fica a versão de depois (" +
               W.slice(j, j + cutWords.length).map(function (w) { return w.t; }).join(" ") + ")." + (ell ? "" : " Revise: pode ser uma enumeração."),
-            features: { cat: "correcao", jac: 1, k: 1, n: 2, dA: 1, dC: 0, w: cutWords.length, word: W[i].n }, ruleConfidence: ell ? "alta" : "media", notes: [] };
+            features: { cat: "correcao", jac: 1, k: 1, n: 2, dA: 1, dC: 0, w: cutWords.length, word: W[i].n }, ruleConfidence: conf, notes: [] };
           if (profile) applyLearning(o, profile);
           occ.push(o);
           i = j - 1;
@@ -277,10 +279,12 @@
         if (!w.filler) return;
         if (profile && habit(profile, w.n)) return;
         var before = i ? w.s - p.words[i - 1].e : p.gapBefore, after = i < p.words.length - 1 ? p.words[i + 1].s - w.e : p.gapAfter;
-        var o = { id: ++id, category: "hesitacao", label: CAT.hesitacao, confidence: "media", start: round(w.s), end: round(w.e),
+        // colada na fala ("Ah, eu acho"), pode ser interjeição natural: fica para o editor decidir
+        var hconf = before >= 0.15 && after >= 0.15 ? "media" : "baixa";
+        var o = { id: ++id, category: "hesitacao", label: CAT.hesitacao, confidence: hconf, start: round(w.s), end: round(w.e),
           attempts: [{ start: round(w.s), end: round(w.e), text: w.t, full: p.text, remove: true, keep: false, why: "hesitação" }],
           best: -1, reason: "“" + w.t + "” é hesitação" + (before >= 0.15 && after >= 0.15 ? " isolada por pausas." : " colada na fala (revise o corte)."),
-          features: { cat: "hesitacao", jac: 0, k: 0, n: 1, dA: 1, dC: 0, w: 1, word: w.n }, ruleConfidence: "media", notes: [] };
+          features: { cat: "hesitacao", jac: 0, k: 0, n: 1, dA: 1, dC: 0, w: 1, word: w.n }, ruleConfidence: hconf, notes: [] };
         if (profile) applyLearning(o, profile);
         occ.push(o);
       });
