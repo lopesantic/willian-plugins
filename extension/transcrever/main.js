@@ -182,6 +182,17 @@
     });
   }
 
+  // Pausas reais do áudio transcrito (pelo volume, com a detecção do AutoCut), para acertar as bordas das palavras.
+  function pausesOf(wav) {
+    try {
+      var detect = require(WP.extensionRoot() + "/autocut/detect.js"), a = detect.analyzeWav(wav, 10);
+      var sp = detect.plan(a, { thresholdDb: detect.suggestThreshold(a.db), minSilenceMs: 150, padBeforeMs: 0, padAfterMs: 0, level: "normal" }).speech;
+      var gaps = [];
+      for (var i = 1; i < sp.length; i++) gaps.push([sp[i - 1].end, sp[i].start]);
+      return gaps;
+    } catch (e) { return null; }
+  }
+
   $("run").addEventListener("click", function () {
     busy(true);
     setProgress(0);
@@ -197,7 +208,7 @@
         });
       })
       .then(function (r) {
-        state.original = r.segments;
+        state.original = T.snapToPauses(r.segments, pausesOf(wav)).segments;
         state.translated = null;
         state.showing = "original";
         state.lang = $("toEnglish").checked ? "en" : r.language;

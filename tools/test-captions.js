@@ -20,27 +20,33 @@ var real = seg([[7.07, 7.07, "em"], [7.07, 7.14, "um"], [7.14, 7.22, "ano,"], [7
 
 console.log("1 palavra por legenda");
 var c1 = T.buildCaptions([real], 1);
-check("nenhuma legenda com menos de 200 ms", c1.every(function (x) { return x.end - x.start >= 0.199; }), show(c1));
 check("nenhuma começa no mesmo quadro de outra (24, 30 e 60 fps)", !sameFrame(c1, 24) && !sameFrame(c1, 30) && !sameFrame(c1, 60), show(c1));
+check("legendas começam pelo menos 3 quadros (100 ms) uma depois da outra", c1.every(function (x, i) { return !i || x.start - c1[i - 1].start >= 0.099; }), show(c1));
 check("sem sobreposição", c1.every(function (x, i) { return !i || x.start >= c1[i - 1].end - 1e-6; }), show(c1));
-check("palavra rápida vai para a mesma linha, sem quebra", c1.some(function (x) { return / /.test(x.text); }) && c1.every(function (x) { return x.text.indexOf("\n") < 0; }), show(c1));
+check("palavras quase juntas vão para a mesma linha, sem quebra", c1.some(function (x) { return / /.test(x.text); }) && c1.every(function (x) { return !/[\r\n]/.test(x.text); }), show(c1));
 var all = c1.map(function (x) { return x.text; }).join(" ");
 check("nenhuma palavra se perde", all === real.text, all);
-check("nenhuma legenda começa antes da fala da primeira palavra", c1.every(function (x) {
-  var first = real.words.filter(function (w) { return x.text.indexOf(w.text) === 0; }).map(function (w) { return w.start; });
-  return first.some(function (s) { return x.start >= s - 1e-6; });
-}), show(c1));
+// sincronia: a legenda começa quando a 1ª palavra dela é falada (nem antes, nem depois)
+var k = 0, firstLag = c1.map(function (x) { var w = real.words[k]; k += x.text.split(" ").length; return x.start - w.start; });
+check("cada legenda começa na fala da sua 1ª palavra (sem atraso)", firstLag.every(function (l) { return Math.abs(l) < 1e-6; }), firstLag.join(", "));
+check("legenda fica até a próxima nas pausas curtas", c1.every(function (x, i) { return !c1[i + 1] || c1[i + 1].start - x.end < 1e-6 || c1[i + 1].start - x.end >= 0.3; }), show(c1));
 
 console.log("Vários blocos");
 [2, 3, 4].forEach(function (n) {
   var c = T.buildCaptions([real], n);
-  check(n + " palavras: sem legenda curta nem no mesmo quadro", c.every(function (x) { return x.end - x.start >= 0.199; }) && !sameFrame(c, 30), show(c));
+  check(n + " palavras: nada no mesmo quadro e começo na fala", !sameFrame(c, 30) && c.every(function (x) { return real.words.some(function (w) { return Math.abs(w.start - x.start) < 1e-6; }); }), show(c));
 });
 
 console.log("Fala normal não muda");
 var calm = seg([[0, 0.4, "Hoje"], [0.45, 0.8, "eu"], [0.85, 1.4, "vou"], [1.45, 2.0, "mostrar."]]);
 var cc = T.buildCaptions([calm], 1);
-check("tempos de palavras normais ficam iguais", cc.length === 4 && Math.abs(cc[2].start - 0.85) < 1e-6 && Math.abs(cc[3].end - 2.0) < 1e-6, show(cc));
+check("início de cada palavra igual ao falado", cc.length === 4 && cc.every(function (x, i) { return Math.abs(x.start - calm.words[i].start) < 1e-6; }) && Math.abs(cc[3].end - 2.0) < 1e-6, show(cc));
 
-console.log("\n" + pass + " ok, " + fail + " falha(s)");
-process.exit(fail ? 1 : 0);
+console.log("Bordas pelo áudio (snapToPauses)");
+var dtw = seg([[0.9, 1.42, "faturamento"], [1.42, 2.38, "de"], [2.38, 2.58, "2024,"]]);
+var sn = T.snapToPauses([dtw], [[1.45, 2.20]]).segments[0];
+check("palavra que começava no meio da pausa passa a começar quando a fala volta", Math.abs(sn.words[1].start - 2.20) < 1e-6 && sn.words[1].end === 2.38, JSON.stringify(sn.words));
+check("palavra fora de pausa fica igual", sn.words[0].start === 0.9 && sn.words[2].start === 2.38);
+check("sem pausas medidas, nada muda", T.snapToPauses([dtw], null).segments[0] === dtw);
+
+

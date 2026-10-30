@@ -47,26 +47,58 @@
   }
 
   // O Whisper dá a algumas palavras rápidas 0 a 80 ms. O Premiere arredonda a legenda para o quadro e junta as que
-  // caem no mesmo quadro numa legenda só, uma palavra por linha (30/10/2026). Cada bloco fica com pelo menos MIN_DUR;
-  // se esticar atrasaria o próximo mais de MAX_LAG em relação à fala, o próximo entra na mesma linha do anterior;
-  // sem poder juntar (outra frase, linha cheia), o anterior encolhe até MIN_HARD (2 quadros, que o Premiere não junta).
-  var MIN_DUR = 0.2, MAX_LAG = 0.25, MIN_HARD = 0.07;
+  // começam no mesmo quadro numa legenda só, uma palavra por linha (30/10/2026). A legenda começa SEMPRE quando a
+  // palavra é falada (esticar a anterior atrasava a fala em até 250 ms); só quando duas começam a menos de MIN_GAP
+  // (3 quadros a 30 fps) a segunda entra na mesma linha. Cada uma fica na tela até a próxima se a pausa for curta.
+  var MIN_GAP = 0.1, HOLD = 0.35;
   function minDuration(list, maxChars) {
     var res = [];
     list.forEach(function (c) {
-      var p = res[res.length - 1], start = p ? Math.max(c.start, p.end) : c.start;
-      if (p && start - c.start > MAX_LAG) {
-        if (p.seg === c.seg && (p.text + " " + c.text).length <= maxChars) {
-          p.text += " " + c.text;
-          p.end = Math.max(p.end, c.end, p.start + MIN_DUR);
-          return;
-        }
-        p.end = Math.max(p.start + MIN_HARD, c.start);
-        start = p.end;
+      var p = res[res.length - 1];
+      if (p && c.start - p.start < MIN_GAP) {
+        if ((p.text + " " + c.text).length <= maxChars) { p.text += " " + c.text; p.end = Math.max(p.end, c.end); return; }
+        c = { seg: c.seg, start: p.start + MIN_GAP, end: c.end, text: c.text };   // linha cheia: no máximo 100 ms depois
       }
-      res.push({ seg: c.seg, start: start, end: Math.max(c.end, start + MIN_DUR), text: c.text });
+      res.push({ seg: c.seg, start: c.start, end: c.end, text: c.text });
     });
+    for (var i = 0; i < res.length; i++) {
+      var next = res[i + 1];
+      if (next && next.start - res[i].end < HOLD) res[i].end = next.start;
+      if (next) res[i].end = Math.min(res[i].end, next.start);
+      res[i].end = Math.max(res[i].end, res[i].start + (next ? Math.min(MIN_GAP, next.start - res[i].start) : 0.2));
+    }
     return res;
+  }
+
+  // Ajusta as bordas das palavras ao áudio que foi transcrito (o DTW do Whisper às vezes faz a palavra começar no
+  // meio de uma pausa ou terminar depois dela: "de" de 1,42 a 2,38 s). gaps: pausas reais [início, fim] em segundos,
+  // medidas no volume do mesmo áudio. Só mexe quando a borda cai dentro da pausa e a palavra continua com fala.
+  function snapToPauses(segments, gaps) {
+    if (!gaps || !gaps.length) return { segments: segments, moved: 0 };
+    var moved = 0;
+    function gapAt(t) { for (var i = 0; i < gaps.length; i++) if (t > gaps[i][0] + 0.03 && t < gaps[i][1] - 0.03) return gaps[i]; return null; }
+    var out = segments.map(function (seg) {
+      // a palavra que atravessa uma pausa com menos de 120 ms antes dela começa quando a fala volta; a que
+      // atravessa com menos de 120 ms depois dela termina quando a pausa começa
+      var words = (seg.words || []).map(function (w) {
+        var s = w.start, e = w.end, i, g;
+        for (i = 0; i < gaps.length; i++) {
+          g = gaps[i];
+          if (g[1] <= s || g[0] >= e) continue;
+          if (g[0] - s < 0.12 && g[1] < e - 0.04 && g[1] - s <= 1.0) { s = g[1]; moved++; }
+          else if (e - g[1] < 0.12 && g[0] > s + 0.04 && e - g[0] <= 1.0) { e = g[0]; moved++; }
+        }
+        return { start: s, end: e, text: w.text };
+      });
+      var copy = {};
+      for (var k in seg) copy[k] = seg[k];
+      copy.words = words;
+      // o início do trecho também não pode cair na pausa (o 1º bloco da frase começa nele)
+      var g0 = gapAt(seg.start);
+      if (g0 && words.length) copy.start = Math.max(seg.start, Math.min(g0[1], words[0].start));
+      return copy;
+    });
+    return { segments: out, moved: moved };
   }
 
   // Sem tempo por palavra (ex.: texto traduzido), distribui a frase proporcionalmente ao tamanho das palavras.
@@ -267,7 +299,7 @@
     return next();
   }
 
-  var api = { buildCaptions: buildCaptions, toSRT: toSRT, toVTT: toVTT, toTXT: toTXT, toCSV: toCSV, toDOCX: toDOCX, toPDF: toPDF,
+  var api = { buildCaptions: buildCaptions, snapToPauses: snapToPauses, toSRT: toSRT, toVTT: toVTT, toTXT: toTXT, toCSV: toCSV, toDOCX: toDOCX, toPDF: toPDF,
               translate: translate, shortStamp: shortStamp };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.WPTranscript = api;
