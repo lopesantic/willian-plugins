@@ -43,7 +43,30 @@
     });
     // sem sobreposição: cada bloco termina, no máximo, onde o próximo começa
     for (var i = 0; i + 1 < out.length; i++) out[i].end = Math.min(out[i].end, out[i + 1].start);
-    return out.map(function (c) { return { start: c.start, end: c.end, text: c.text, speaker: c.seg.speaker }; });
+    return minDuration(out, maxChars).map(function (c) { return { start: c.start, end: c.end, text: c.text, speaker: c.seg.speaker }; });
+  }
+
+  // O Whisper dá a algumas palavras rápidas 0 a 80 ms. O Premiere arredonda a legenda para o quadro e junta as que
+  // caem no mesmo quadro numa legenda só, uma palavra por linha (30/10/2026). Cada bloco fica com pelo menos MIN_DUR;
+  // se esticar atrasaria o próximo mais de MAX_LAG em relação à fala, o próximo entra na mesma linha do anterior;
+  // sem poder juntar (outra frase, linha cheia), o anterior encolhe até MIN_HARD (2 quadros, que o Premiere não junta).
+  var MIN_DUR = 0.2, MAX_LAG = 0.25, MIN_HARD = 0.07;
+  function minDuration(list, maxChars) {
+    var res = [];
+    list.forEach(function (c) {
+      var p = res[res.length - 1], start = p ? Math.max(c.start, p.end) : c.start;
+      if (p && start - c.start > MAX_LAG) {
+        if (p.seg === c.seg && (p.text + " " + c.text).length <= maxChars) {
+          p.text += " " + c.text;
+          p.end = Math.max(p.end, c.end, p.start + MIN_DUR);
+          return;
+        }
+        p.end = Math.max(p.start + MIN_HARD, c.start);
+        start = p.end;
+      }
+      res.push({ seg: c.seg, start: start, end: Math.max(c.end, start + MIN_DUR), text: c.text });
+    });
+    return res;
   }
 
   // Sem tempo por palavra (ex.: texto traduzido), distribui a frase proporcionalmente ao tamanho das palavras.
