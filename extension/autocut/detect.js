@@ -137,9 +137,10 @@
   //  5. opcionalmente corta micro-pausas entre palavras, só quando são silêncio de verdade (perto do ruído de fundo);
   //  6. alinha ao quadro para dentro do silêncio: início do corte arredonda para cima, fim para baixo.
   var LEVELS = {
-    leve:   { minSpeechMs: 40,  margin: 4, sustainMs: 120, maxClipMs: 150 },
-    normal: { minSpeechMs: 70,  margin: 6, sustainMs: 180, maxClipMs: 250 },
-    forte:  { minSpeechMs: 110, margin: 8, sustainMs: 250, maxClipMs: 400 }
+    // isoMs/isoBelow: som isolado (núcleo até isoMs, isoBelow dB abaixo da fala típica, pausa de 350 ms dos dois lados)
+    leve:   { minSpeechMs: 40,  margin: 4, sustainMs: 120, maxClipMs: 150, isoMs: 0,   isoBelow: 99 },
+    normal: { minSpeechMs: 70,  margin: 6, sustainMs: 180, maxClipMs: 250, isoMs: 200, isoBelow: 12 },
+    forte:  { minSpeechMs: 110, margin: 8, sustainMs: 250, maxClipMs: 400, isoMs: 300, isoBelow: 8 }
   };
 
   function levels(db) {
@@ -150,8 +151,6 @@
   function plan(analysis, o) {
     var db = analysis.db, step = analysis.windowMs / 1000, n = db.length, dur = analysis.duration;
     var thr = o.thresholdDb, L = LEVELS[o.level] || LEVELS.normal, lv = levels(db);
-    // segunda passagem: o áudio já cortado quase não tem pausa, e o ruído medido nele sairia alto demais
-    if (o.floorDb != null) lv.floor = o.floorDb;
     var rel = Math.min(thr, Math.max(lv.floor + 4, thr - 8));            // limiar de soltura (bordas da fala)
     var pa = (o.padAfterMs != null ? o.padAfterMs : o.paddingMs) / 1000;  // depois da fala (início do corte)
     var pb = (o.padBeforeMs != null ? o.padBeforeMs : o.paddingMs) / 1000; // antes da fala (fim do corte)
@@ -168,7 +167,8 @@
       s.peak = -120; s.loud = 0;
       for (var k = s.i0; k < s.i1; k++) { if (db[k] > s.peak) s.peak = db[k]; if (db[k] >= thr) s.loud++; }
       s.loudMs = s.loud * analysis.windowMs;
-      s.fala = (s.peak >= thr + L.margin && s.loudMs >= L.minSpeechMs) || s.loudMs >= L.sustainMs;
+      // estouro com volume de fala (até 6 dB abaixo da fala típica) e 40 ms ou mais é sílaba, em qualquer nível
+      s.fala = (s.peak >= thr + L.margin && s.loudMs >= L.minSpeechMs) || s.loudMs >= L.sustainMs || (s.peak >= lv.speech - 6 && s.loudMs >= 40);
     });
 
     // 2) palavras do Whisper: só protegem (nunca mandam cortar)
@@ -181,6 +181,19 @@
       if (!hit && c1 - c0 >= 0.04) { isl.push({ i0: Math.floor(c0 / step), i1: Math.ceil(c1 / step), peak: -120, loudMs: 0, fala: true, byWords: true }); byWords++; }
     });
     isl.sort(function (a, b) { return a.i0 - b.i0; });
+
+    // 2b) som isolado: ilha curta, bem mais baixa que a fala e cercada de pausa (estalo de boca, batida, "tsc").
+    //     Fica como fala se o Whisper escreveu uma palavra ali. Medido nas falas vizinhas, antes das margens.
+    var isolated = 0, iso = 35;
+    if (L.isoMs) isl.forEach(function (s, k) {
+      if (!s.fala || s.byWords || (s.i1 - s.i0) * analysis.windowMs > L.isoMs || s.peak > lv.speech - L.isoBelow) return;
+      var prev = null, next = null, q;
+      for (q = k - 1; q >= 0; q--) if (isl[q].fala) { prev = isl[q]; break; }
+      for (q = k + 1; q < isl.length; q++) if (isl[q].fala) { next = isl[q]; break; }
+      if ((prev && s.i0 - prev.i1 < iso) || (next && next.i0 - s.i1 < iso)) return;
+      if (words.some(function (w) { var m = (w.s + w.e) / 2; return m >= s.i0 * step && m <= s.i1 * step; })) return;
+      s.fala = false; s.isolated = true; isolated++;
+    });
 
     // 3) fala com bordas estendidas pela soltura: até 120 ms antes (ataque) e 250 ms depois (cauda de "s", "f", "r")
     var sp = [];
@@ -209,7 +222,7 @@
     });
 
     // 5) silêncios = espaços entre falas
-    var out = [], micro = 0, quietDb = Math.min(thr - 3, lv.floor + (thr - lv.floor) / 2), minCut = (o.minCutMs || 0) / 1000;
+    var out = [], micro = 0, quietDb = Math.min(thr - 3, lv.floor + (thr - lv.floor) / 2);
     for (i = 0; i <= sp.length; i++) {
       var g0 = i ? sp[i - 1].i1 * step : 0, g1 = Math.min(i < sp.length ? sp[i].i0 * step : dur, dur);
       var len = g1 - g0;
@@ -223,7 +236,7 @@
         for (j = i ? sp[i - 1].i1 : 0; j < j1; j++) if (db[j] > mx) mx = db[j];
         if (mx <= quietDb) { kind = "micro"; pA = Math.min(pa, 0.04); pB = Math.min(pb, 0.03); }
       }
-      if (!kind || len < minCut) continue;
+      if (!kind) continue;
       var s0 = g0 <= 0 ? 0 : g0 + pA, e0 = g1 >= dur ? dur : g1 - pB;
       if (e0 - s0 < 0.04) continue;
       var inside = residues.filter(function (r) { return r.i0 * step >= g0 && r.i1 * step <= g1; }).length;
@@ -231,34 +244,24 @@
       out.push({ start: s0, end: e0, kind: kind, residues: inside });
     }
 
-    // 5b) segunda passagem: clipe curto da timeline (o.clips, em segundos) sem nenhuma ilha de fala dentro é resíduo e
-    //     sai inteiro. Clipe curto COM fala fica: pode ser uma palavra curta.
-    var fragments = 0;
-    (o.clips || []).forEach(function (c) {
-      if (c[1] - c[0] > L.maxClipMs / 1000) return;
-      if (isl.some(function (s) { return s.fala && s.i0 * step < c[1] && s.i1 * step > c[0]; })) return;
-      out.push({ start: c[0], end: c[1], kind: "fragmento", residues: 1 }); fragments++;
+    // 6) alinhamento ao quadro, sempre para dentro do silêncio
+    var fd = o.frameSec || 0;
+    if (fd > 0) out = out.filter(function (r) {
+      if (r.start > 0) r.start = Math.ceil(r.start / fd - 1e-6) * fd;
+      if (r.end < dur) r.end = Math.floor(r.end / fd + 1e-6) * fd;
+      return r.end - r.start >= fd - 1e-6;
     });
-    out.sort(function (a, b) { return a.start - b.start; });
-    for (i = out.length - 1; i > 0; i--) if (out[i].start <= out[i - 1].end + 1e-6) {
-      out[i - 1].end = Math.max(out[i - 1].end, out[i].end); out[i - 1].residues += out[i].residues; out.splice(i, 1);
-    }
 
-    // 6) alinhamento ao quadro, sempre para dentro do silêncio; lasca menor que 2 quadros entre dois cortes, sem fala
-    //    nenhuma no meio, é juntada
-    var fd = o.frameSec || 0, slivers = 0;
-    if (fd > 0) {
-      out = out.filter(function (r) {
-        if (r.start > 0) r.start = Math.ceil(r.start / fd - 1e-6) * fd;
-        if (r.end < dur) r.end = Math.floor(r.end / fd + 1e-6) * fd;
-        return r.end - r.start >= fd - 1e-6;
-      });
-      for (i = out.length - 1; i > 0; i--) {
-        var a0 = out[i - 1].end, b0 = out[i].start;
-        if (b0 - a0 >= 2 * fd - 1e-6) continue;
-        if (sp.some(function (s) { return s.i0 * step < b0 && s.i1 * step > a0; })) continue;
-        out[i - 1].end = out[i].end; out[i - 1].residues += out[i].residues; out.splice(i, 1); slivers++;
-      }
+    // 7) refino na mesma passada (antes era uma 2ª passagem que reexportava a timeline cortada: mais lenta e, com o
+    //    áudio exportado fora de sincronia com os clipes, chegou a cortar fala). Simula a timeline já cortada: o pedaço
+    //    curto que ficaria entre dois cortes sem nenhum núcleo de fala (estalo, resto de respiração, ruído, lasca de
+    //    quadro) sai junto. Pedaço curto COM fala fica: pode ser uma palavra.
+    var fragments = 0, maxPiece = Math.max(L.maxClipMs / 1000, 2 * fd), cores = isl.filter(function (s) { return s.fala; });
+    for (i = out.length - 1; i > 0; i--) {
+      var a0 = out[i - 1].end, b0 = out[i].start;
+      if (b0 - a0 > maxPiece + 1e-6) continue;
+      if (cores.some(function (s) { return s.i0 * step < b0 && s.i1 * step > a0; })) continue;
+      out[i - 1].end = out[i].end; out[i - 1].residues += out[i].residues + 1; out.splice(i, 1); fragments++;
     }
     out.forEach(function (r) { r.start = round(r.start); r.end = round(r.end); });
     return {
@@ -268,7 +271,7 @@
       core: isl.filter(function (s) { return s.fala; }).map(function (s) { return { start: round(s.i0 * step), end: round(Math.min(dur, s.i1 * step)) }; }),
       residues: residues.map(function (r) { return { start: round(r.i0 * step), end: round(r.i1 * step), peak: Math.round(r.peak * 10) / 10 }; }),
       stats: { floor: Math.round(lv.floor * 10) / 10, speech: Math.round(lv.speech * 10) / 10, release: Math.round(rel * 10) / 10,
-               residues: residues.length, breaths: breaths, micro: micro, byWords: byWords, slivers: slivers, fragments: fragments }
+               residues: residues.length, breaths: breaths, micro: micro, byWords: byWords, fragments: fragments, isolated: isolated }
     };
   }
 

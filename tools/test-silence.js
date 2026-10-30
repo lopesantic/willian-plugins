@@ -92,16 +92,14 @@ var old8 = D.findSilences(a8, { thresholdDb: -38, minSilenceMs: 500, paddingMs: 
 var kOld = kept(old8, a8.duration), kNew = kept(new8.regions, a8.duration);
 check("antigo deixava uma lasca (comparação)", kOld.some(function (k) { return k[1] - k[0] < 0.3; }), show(old8));
 check("novo: um corte só, sem lasca", new8.regions.length === 1 && !kNew.some(function (k) { return k[1] - k[0] < 0.3; }) && new8.stats.residues === 1, show(new8.regions));
-// segunda passagem: monta o áudio da timeline cortada pelo algoritmo antigo e passa de novo com os clipes dela
-var x2 = [], spans = [], t = 0;
-kOld.forEach(function (k) { var s = Math.round(k[0] * SR), e = Math.round(k[1] * SR); for (var q = s; q < e; q++) x2.push(s8.x[q]); spans.push([t, t + (e - s) / SR]); t += (e - s) / SR; });
-var a8b = wav({ x: Float32Array.from(x2) }, "t8b"), p8b = D.plan(a8b, base({ clips: spans, minCutMs: 60 + 100 + 120 }));
-check("2ª passagem acha a lasca que a 1ª deixou", p8b.regions.some(function (r) { return r.kind === "fragmento"; }) && D.overlapsSpeech(p8b.regions, p8b.core).length === 0, show(p8b.regions));
-// timeline já limpa pelo algoritmo novo: a 2ª passagem não acha mais nada (as emendas têm só as duas margens)
-var x3 = [], t3 = 0, spans3 = [];
-kNew.forEach(function (k) { var s = Math.round(k[0] * SR), e = Math.round(k[1] * SR); for (var q = s; q < e; q++) x3.push(s8.x[q]); spans3.push([t3, t3 + (e - s) / SR]); t3 += (e - s) / SR; });
-var p8c = D.plan(wav({ x: Float32Array.from(x3) }, "t8c"), base({ clips: spans3, minCutMs: 280 }));
-check("2ª passagem não recorta as emendas (critério de parada)", p8c.regions.length === 0, show(p8c.regions));
+console.log("8b. Som isolado (estalo de boca, batida) x sílaba curta");
+var s8i = make([["fala", 1500, -14], ["pausa", 600], ["estalo", 150, -30], ["pausa", 600], ["fala", 1500, -14], ["pausa", 600], ["fala", 90, -14], ["pausa", 600], ["fala", 1500, -14]], -55), a8i = wav(s8i, "t8i");
+var iso = s8i.marks[2], syl = s8i.marks[6], pN = D.plan(a8i, base({ minSilenceMs: 150, padBeforeMs: 40, padAfterMs: 60 }));
+check("normal: o som isolado e fraco sai junto com a pausa", cutsTouch(pN.regions, iso.start + 0.02, iso.end - 0.02) && pN.stats.isolated === 1, show(pN.regions));
+check("normal: a sílaba curta com volume de fala fica", !cutsTouch(pN.regions, syl.start + 0.01, syl.end - 0.01), show(pN.regions));
+check("forte: a sílaba curta com volume de fala continua", !cutsTouch(D.plan(a8i, base({ minSilenceMs: 150, padBeforeMs: 40, padAfterMs: 60, level: "forte" })).regions, syl.start + 0.01, syl.end - 0.01));
+check("leve: o som isolado fica", !cutsTouch(D.plan(a8i, base({ minSilenceMs: 150, padBeforeMs: 40, padAfterMs: 60, level: "leve" })).regions, iso.start + 0.02, iso.end - 0.02));
+check("palavra transcrita ali protege o som isolado", !cutsTouch(D.plan(a8i, base({ minSilenceMs: 150, padBeforeMs: 40, padAfterMs: 60, words: [{ s: iso.start, e: iso.end }] })).regions, iso.start + 0.02, iso.end - 0.02));
 
 console.log("9. Ruído de fundo");
 var s9 = make([["fala", 1500, -16], ["pausa", 1200], ["fala", 1500, -16]], -40), a9 = wav(s9, "t9"), th9 = D.suggestThreshold(a9.db);

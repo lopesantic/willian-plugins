@@ -15,7 +15,7 @@
   var trackSel = $("track"), analyzeBtn = $("analyze"), results = $("results");
   var canvas = $("wave"), summary = $("summary"), statusEl = $("status");
   var threshold = $("threshold"), min = $("min"), padBefore = $("padBefore"), padAfter = $("padAfter"), mode = $("mode");
-  var level = $("level"), pass2 = $("pass2"), breaths = $("breaths"), micro = $("micro");
+  var level = $("level"), breaths = $("breaths"), micro = $("micro");
   var cutBtn = $("cut"), undoBtn = $("undo");
   var analysis = null, regions = [], planned = null, frameSec = 0, words = null;
 
@@ -36,7 +36,6 @@
     padAfter.value = s.after != null ? s.after : (s.pad || 150);
     mode.value = s.mode || "ripple";
     level.value = s.level || "normal";
-    pass2.checked = s.pass2 !== false;
     breaths.checked = s.breaths !== false;
     micro.checked = !!s.micro;
   }
@@ -44,7 +43,7 @@
   function saveSettings() {
     try {
       localStorage.setItem(STORE, JSON.stringify({ min: +min.value, before: +padBefore.value, after: +padAfter.value, mode: mode.value,
-        level: level.value, pass2: pass2.checked, breaths: breaths.checked, micro: micro.checked }));
+        level: level.value, breaths: breaths.checked, micro: micro.checked }));
     } catch (e) {}
   }
 
@@ -77,7 +76,8 @@
     if (st.breaths) det.push(st.breaths + " respiração(ões) preservada(s)");
     if (st.micro) det.push(st.micro + " micro-pausa(s)");
     if (st.byWords) det.push(st.byWords + " trecho(s) protegido(s) pela transcrição");
-    if (st.slivers) det.push(st.slivers + " lasca(s) entre cortes juntada(s)");
+    if (st.isolated) det.push(st.isolated + " som(ns) isolado(s) sem fala (boca, batida) sai(em) junto");
+    if (st.fragments) det.push(st.fragments + " lasca(s) sem fala entre cortes removida(s) junto");
     $("detail").textContent = det.length ? det.join(" · ") + "." : "";
     draw();
     saveSettings();
@@ -237,55 +237,24 @@
 
   cutBtn.addEventListener("click", function () {
     if (!regions.length) { setStatus("Nenhum silêncio com esses ajustes.", "error"); return; }
+    // validação antes de mandar: nenhum corte pode tocar o núcleo da fala (o refino já roda dentro do plan)
+    var bad = detect.overlapsSpeech(regions, planned.core);
+    if (bad.length) { setStatus("Corte cancelado: um trecho tocaria a fala em " + fmt(bad[0].cut.start) + ". Ajuste o limiar.", "error"); return; }
     setBusy(true);
-    setStatus("1ª passagem: cortando " + regions.length + " silêncios…");
-    var first, second = null, check = null;
-    WP.call("WPAutoCut.cut", [JSON.stringify(regions.map(function (r) { return { start: r.start, end: r.end }; })), mode.value, false, false])
-      .then(function (d) {
-        first = d;
-        // a segunda passagem lê a timeline já cortada; nos modos que deixam buracos ou só cortam, não faz sentido
-        if (!pass2.checked || mode.value !== "ripple") return null;
-        return secondPass(d.after).then(function (r) { second = r; });
-      })
-      .then(function () { return WP.call("WPAutoCut.shortClips", [2]).then(function (c) { check = c; }, function () {}); })
+    setStatus("Cortando " + regions.length + " silêncios…");
+    var done = null, check = null, t0 = Date.now();
+    WP.call("WPAutoCut.cut", [JSON.stringify(regions.map(function (r) { return { start: r.start, end: r.end }; })), mode.value, false])
+      .then(function (d) { done = d; return WP.call("WPAutoCut.shortClips", [2]).then(function (c) { check = c; }, function () {}); })
       .then(function () {
-        var d = second && second.cut ? second.cut : first, gaps = first.gaps + (second && second.cut ? second.cut.gaps : 0);
-        var msg = "1ª passagem: " + first.cuts + " cortes";
-        if (second) msg += " · 2ª passagem: " + (second.cut ? second.cut.cuts + " sobra(s) removida(s) (" + second.found + ")" : "nada sobrando");
-        msg += " · " + fmt(first.before) + " → " + fmt(d.after) + ".";
-        msg += gaps ? " Atenção: " + gaps + " emenda(s) ficaram com espaço." : (mode.value === "ripple" ? " Sem espaços nas emendas." : "");
+        var msg = done.cuts + " cortes em " + Math.round((Date.now() - t0) / 1000) + " s · " + fmt(done.before) + " → " + fmt(done.after) + ".";
+        msg += done.gaps ? " Atenção: " + done.gaps + " emenda(s) ficaram com espaço." : (mode.value === "ripple" ? " Sem espaços nas emendas." : "");
         if (check && check.count) msg += " " + check.count + " clipe(s) com menos de 2 quadros (" + check.at + "): confira.";
-        msg += " Desfazer cortes volta como estava antes da 1ª passagem.";
-        setStatus(msg, gaps ? "error" : "ok");
+        msg += " Desfazer cortes volta como estava.";
+        setStatus(msg, done.gaps ? "error" : "ok");
       })
-      .catch(function (e) { setStatus(e.message + (first ? " (a 1ª passagem foi aplicada; Desfazer cortes volta tudo)" : ""), "error"); })
+      .catch(function (e) { setStatus(e.message, "error"); })
       .then(function () { setBusy(false); });
   });
-
-  // Segunda passagem: exporta o áudio da timeline já cortada, procura o que escapou (pausas que um estalo partiu,
-  // lascas sem fala entre dois cortes) e corta uma vez só, sem nova cópia. Critério de parada: no máximo uma
-  // passagem extra, e ela só corta pausa maior que as duas margens somadas + 120 ms, para não recortar as emendas.
-  function secondPass(contentEnd) {
-    setStatus("2ª passagem: lendo a timeline cortada…");
-    var wav2 = path.join(os.tmpdir(), "willian-autocut-2.wav").replace(/\\/g, "/"), spans = [];
-    return WP.call("WPAutoCut.exportAudio", [trackSel.value, wav2])
-      .then(function () { return WP.call("WPAutoCut.clipSpans", [trackSel.value]); })
-      .then(function (c) {
-        spans = c.spans ? c.spans.split(";").map(function (x) { return x.split(",").map(Number); }) : [];
-        var a2 = detect.analyzeWav(wav2, 10);
-        // o áudio exportado pode ir além do último clipe (o Premiere demora a encolher o fim da sequência)
-        if (contentEnd > 0 && a2.duration > contentEnd) { a2.db = a2.db.subarray(0, Math.round(contentEnd / (a2.windowMs / 1000))); a2.duration = contentEnd; }
-        var p2 = detect.plan(a2, opts({ clips: spans, minCutMs: +padBefore.value + +padAfter.value + 120, floorDb: planned.stats.floor }));
-        var bad = detect.overlapsSpeech(p2.regions, p2.core);
-        if (bad.length) throw new Error("2ª passagem cancelada: um corte tocaria a fala (" + bad[0].cut.start.toFixed(2) + " s).");
-        if (!p2.regions.length) return { found: "nada", cut: null };
-        var nFrag = p2.regions.filter(function (r) { return r.kind === "fragmento"; }).length;
-        var found = (p2.regions.length - nFrag) + " pausa(s), " + nFrag + " lasca(s) sem fala";
-        setStatus("2ª passagem: removendo " + found + "…");
-        return WP.call("WPAutoCut.cut", [JSON.stringify(p2.regions.map(function (r) { return { start: r.start, end: r.end }; })), "ripple", false, true])
-          .then(function (d) { return { found: found, cut: d }; });
-      });
-  }
 
   undoBtn.addEventListener("click", function () {
     setBusy(true);
@@ -309,7 +278,6 @@
   });
   [threshold, min, padBefore, padAfter].forEach(function (el) { el.addEventListener("input", recompute); });
   [level, breaths, micro].forEach(function (el) { el.addEventListener("change", recompute); });
-  pass2.addEventListener("change", saveSettings);
   mode.addEventListener("change", saveSettings);
   window.addEventListener("resize", function () { if (analysis) draw(); });
 
