@@ -318,6 +318,20 @@
 
   // chamado por main.js depois de "Desfazer cortes": a análise antiga não vale para a sequência restaurada
   window.ACErrors = { afterUndo: function () { st.stale = true; if (st.result) { $("errResults").classList.add("hidden"); $("errPreview").classList.add("hidden"); } },
+    // palavras de uma transcrição já feita deste mesmo áudio (qualquer modo), para a aba Silêncios proteger a fala
+    wordsFor: function (wav) {
+      try {
+        var modes = ["baleia", "golfinho", "chita"];
+        for (var i = 0; i < modes.length; i++) {
+          var f = path.join(TDIR, audioKey(wav, modes[i]) + ".json");
+          if (!fs.existsSync(f)) continue;
+          var w = [];
+          JSON.parse(fs.readFileSync(f, "utf8")).segments.forEach(function (sg) { (sg.words || []).forEach(function (x) { if (x.end > x.start) w.push({ s: x.start, e: x.end }); }); });
+          return w.length ? w : null;
+        }
+      } catch (e) {}
+      return null;
+    },
     _st: st, _run: run,
     // teste sem o Premiere: analisa um WAV do disco como se fosse o áudio exportado da sequência
     _useWav: function (wav) {

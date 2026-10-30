@@ -3,19 +3,21 @@
   var path = require("path");
   var detect = require(WP.extensionRoot() + "/autocut/detect.js");
 
+  // margem antes da fala é menor que a de depois: o fim das palavras decai devagar ("s", "r"), o começo é seco
   var PRESETS = {
-    natural: { min: 600, pad: 150 },
-    ritmado: { min: 350, pad: 80 },
-    rapido: { min: 150, pad: 40 }
+    natural: { min: 600, before: 120, after: 180 },
+    ritmado: { min: 350, before: 70, after: 110 },
+    rapido: { min: 150, before: 40, after: 60 }
   };
   var STORE = "wp.autocut.settings";
 
   var $ = function (id) { return document.getElementById(id); };
   var trackSel = $("track"), analyzeBtn = $("analyze"), results = $("results");
   var canvas = $("wave"), summary = $("summary"), statusEl = $("status");
-  var threshold = $("threshold"), min = $("min"), pad = $("pad"), mode = $("mode");
+  var threshold = $("threshold"), min = $("min"), padBefore = $("padBefore"), padAfter = $("padAfter"), mode = $("mode");
+  var level = $("level"), pass2 = $("pass2"), breaths = $("breaths"), micro = $("micro");
   var cutBtn = $("cut"), undoBtn = $("undo");
-  var analysis = null, regions = [];
+  var analysis = null, regions = [], planned = null, frameSec = 0, words = null;
 
   function setStatus(text, kind) {
     statusEl.textContent = text;
@@ -30,14 +32,27 @@
     var s = {};
     try { s = JSON.parse(localStorage.getItem(STORE)) || {}; } catch (e) {}
     min.value = s.min || 500;
-    pad.value = s.pad || 100;
+    padBefore.value = s.before != null ? s.before : (s.pad || 100);
+    padAfter.value = s.after != null ? s.after : (s.pad || 150);
     mode.value = s.mode || "ripple";
+    level.value = s.level || "normal";
+    pass2.checked = s.pass2 !== false;
+    breaths.checked = s.breaths !== false;
+    micro.checked = !!s.micro;
   }
 
   function saveSettings() {
     try {
-      localStorage.setItem(STORE, JSON.stringify({ min: +min.value, pad: +pad.value, mode: mode.value }));
+      localStorage.setItem(STORE, JSON.stringify({ min: +min.value, before: +padBefore.value, after: +padAfter.value, mode: mode.value,
+        level: level.value, pass2: pass2.checked, breaths: breaths.checked, micro: micro.checked }));
     } catch (e) {}
+  }
+
+  function opts(extra) {
+    var o = { thresholdDb: +threshold.value, minSilenceMs: +min.value, padBeforeMs: +padBefore.value, padAfterMs: +padAfter.value,
+              level: level.value, keepBreaths: breaths.checked, micro: micro.checked, frameSec: frameSec };
+    for (var k in extra || {}) o[k] = extra[k];
+    return o;
   }
 
   function fmt(sec) {
@@ -46,17 +61,24 @@
   }
 
   function recompute() {
-    $("thresholdOut").textContent = threshold.value + " dB";
+    $("thresholdOut").textContent = threshold.value + " dBFS";
     $("minOut").textContent = min.value + " ms";
-    $("padOut").textContent = pad.value + " ms";
+    $("padBeforeOut").textContent = padBefore.value + " ms";
+    $("padAfterOut").textContent = padAfter.value + " ms";
     if (!analysis) return;
-    regions = detect.findSilences(analysis, {
-      thresholdDb: +threshold.value, minSilenceMs: +min.value, paddingMs: +pad.value
-    });
-    var total = regions.reduce(function (a, r) { return a + r.end - r.start; }, 0);
+    planned = detect.plan(analysis, opts({ words: words }));
+    regions = planned.regions;
+    var total = regions.reduce(function (a, r) { return a + r.end - r.start; }, 0), st = planned.stats;
     // o tempo removido em vermelho, como no gráfico
     summary.innerHTML = regions.length + " silêncios · <span class=\"removed\">−" + fmt(total) + "</span> de " +
       fmt(analysis.duration) + " · fica com " + fmt(analysis.duration - total);
+    var det = [];
+    if (st.residues) det.push(st.residues + " estalo(s)/ruído(s) dentro das pausas não interrompem o silêncio");
+    if (st.breaths) det.push(st.breaths + " respiração(ões) preservada(s)");
+    if (st.micro) det.push(st.micro + " micro-pausa(s)");
+    if (st.byWords) det.push(st.byWords + " trecho(s) protegido(s) pela transcrição");
+    if (st.slivers) det.push(st.slivers + " lasca(s) entre cortes juntada(s)");
+    $("detail").textContent = det.length ? det.join(" · ") + "." : "";
     draw();
     saveSettings();
   }
@@ -193,18 +215,21 @@
     setStatus("Exportando o áudio da sequência…");
     var wav = path.join(os.tmpdir(), "willian-autocut.wav").replace(/\\/g, "/");
     loadTracks()
-      .then(function () { return WP.call("WPAutoCut.exportAudio", [trackSel.value, wav]); })
+      .then(function () { return WP.call("WPAutoCut.info"); })
+      .then(function (d) { frameSec = d.frameSec || 0; return WP.call("WPAutoCut.exportAudio", [trackSel.value, wav]); })
       .then(function () {
         setStatus("Analisando…");
         return new Promise(function (r) { setTimeout(r, 30); });
       })
       .then(function () {
         analysis = detect.analyzeWav(wav, 10);
+        // se este mesmo áudio já foi transcrito (aba Erros de Gravação), as palavras protegem a fala fraca
+        words = window.ACErrors && window.ACErrors.wordsFor ? window.ACErrors.wordsFor(wav) : null;
         fullView();
         threshold.value = detect.suggestThreshold(analysis.db);
         results.classList.remove("hidden");
         recompute();
-        setStatus("Pronto. Ajuste e clique em Cortar.", "ok");
+        setStatus("Pronto. Ajuste e clique em Cortar." + (words ? " Usando a transcrição deste áudio para proteger as palavras." : ""), "ok");
       })
       .catch(function (e) { setStatus(e.message, "error"); })
       .then(function () { setBusy(false); });
@@ -213,15 +238,54 @@
   cutBtn.addEventListener("click", function () {
     if (!regions.length) { setStatus("Nenhum silêncio com esses ajustes.", "error"); return; }
     setBusy(true);
-    setStatus("Cortando " + regions.length + " silêncios…");
-    WP.call("WPAutoCut.cut", [JSON.stringify(regions), mode.value, false])
+    setStatus("1ª passagem: cortando " + regions.length + " silêncios…");
+    var first, second = null, check = null;
+    WP.call("WPAutoCut.cut", [JSON.stringify(regions.map(function (r) { return { start: r.start, end: r.end }; })), mode.value, false, false])
       .then(function (d) {
-        var gapsMsg = d.mode === "ripple" ? (d.gaps ? " Atenção: " + d.gaps + " emenda(s) ficaram com espaço." : " Sem espaços nas emendas.") : "";
-        setStatus(d.cuts + " cortes: " + fmt(d.before) + " → " + fmt(d.after) + "." + gapsMsg + " Desfazer cortes volta como estava.", d.gaps ? "error" : "ok");
+        first = d;
+        // a segunda passagem lê a timeline já cortada; nos modos que deixam buracos ou só cortam, não faz sentido
+        if (!pass2.checked || mode.value !== "ripple") return null;
+        return secondPass(d.after).then(function (r) { second = r; });
       })
-      .catch(function (e) { setStatus(e.message, "error"); })
+      .then(function () { return WP.call("WPAutoCut.shortClips", [2]).then(function (c) { check = c; }, function () {}); })
+      .then(function () {
+        var d = second && second.cut ? second.cut : first, gaps = first.gaps + (second && second.cut ? second.cut.gaps : 0);
+        var msg = "1ª passagem: " + first.cuts + " cortes";
+        if (second) msg += " · 2ª passagem: " + (second.cut ? second.cut.cuts + " sobra(s) removida(s) (" + second.found + ")" : "nada sobrando");
+        msg += " · " + fmt(first.before) + " → " + fmt(d.after) + ".";
+        msg += gaps ? " Atenção: " + gaps + " emenda(s) ficaram com espaço." : (mode.value === "ripple" ? " Sem espaços nas emendas." : "");
+        if (check && check.count) msg += " " + check.count + " clipe(s) com menos de 2 quadros (" + check.at + "): confira.";
+        msg += " Desfazer cortes volta como estava antes da 1ª passagem.";
+        setStatus(msg, gaps ? "error" : "ok");
+      })
+      .catch(function (e) { setStatus(e.message + (first ? " (a 1ª passagem foi aplicada; Desfazer cortes volta tudo)" : ""), "error"); })
       .then(function () { setBusy(false); });
   });
+
+  // Segunda passagem: exporta o áudio da timeline já cortada, procura o que escapou (pausas que um estalo partiu,
+  // lascas sem fala entre dois cortes) e corta uma vez só, sem nova cópia. Critério de parada: no máximo uma
+  // passagem extra, e ela só corta pausa maior que as duas margens somadas + 120 ms, para não recortar as emendas.
+  function secondPass(contentEnd) {
+    setStatus("2ª passagem: lendo a timeline cortada…");
+    var wav2 = path.join(os.tmpdir(), "willian-autocut-2.wav").replace(/\\/g, "/"), spans = [];
+    return WP.call("WPAutoCut.exportAudio", [trackSel.value, wav2])
+      .then(function () { return WP.call("WPAutoCut.clipSpans", [trackSel.value]); })
+      .then(function (c) {
+        spans = c.spans ? c.spans.split(";").map(function (x) { return x.split(",").map(Number); }) : [];
+        var a2 = detect.analyzeWav(wav2, 10);
+        // o áudio exportado pode ir além do último clipe (o Premiere demora a encolher o fim da sequência)
+        if (contentEnd > 0 && a2.duration > contentEnd) { a2.db = a2.db.subarray(0, Math.round(contentEnd / (a2.windowMs / 1000))); a2.duration = contentEnd; }
+        var p2 = detect.plan(a2, opts({ clips: spans, minCutMs: +padBefore.value + +padAfter.value + 120, floorDb: planned.stats.floor }));
+        var bad = detect.overlapsSpeech(p2.regions, p2.core);
+        if (bad.length) throw new Error("2ª passagem cancelada: um corte tocaria a fala (" + bad[0].cut.start.toFixed(2) + " s).");
+        if (!p2.regions.length) return { found: "nada", cut: null };
+        var nFrag = p2.regions.filter(function (r) { return r.kind === "fragmento"; }).length;
+        var found = (p2.regions.length - nFrag) + " pausa(s), " + nFrag + " lasca(s) sem fala";
+        setStatus("2ª passagem: removendo " + found + "…");
+        return WP.call("WPAutoCut.cut", [JSON.stringify(p2.regions.map(function (r) { return { start: r.start, end: r.end }; })), "ripple", false, true])
+          .then(function (d) { return { found: found, cut: d }; });
+      });
+  }
 
   undoBtn.addEventListener("click", function () {
     setBusy(true);
@@ -238,11 +302,14 @@
     b.addEventListener("click", function () {
       var p = PRESETS[b.dataset.preset];
       min.value = p.min;
-      pad.value = p.pad;
+      padBefore.value = p.before;
+      padAfter.value = p.after;
       recompute();
     });
   });
-  [threshold, min, pad].forEach(function (el) { el.addEventListener("input", recompute); });
+  [threshold, min, padBefore, padAfter].forEach(function (el) { el.addEventListener("input", recompute); });
+  [level, breaths, micro].forEach(function (el) { el.addEventListener("change", recompute); });
+  pass2.addEventListener("change", saveSettings);
   mode.addEventListener("change", saveSettings);
   window.addEventListener("resize", function () { if (analysis) draw(); });
 

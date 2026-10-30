@@ -20,13 +20,21 @@ var WPAutoCut = (function () {
         return Math.round(seconds / fd) * fd;
     }
 
+    // seq.end do Premiere não encolhe logo depois do ripple: a duração real é o fim do último clipe
+    function contentEndOf(seq) {
+        var e = 0, t, c, T = [seq.videoTracks, seq.audioTracks];
+        for (var g = 0; g < 2; g++) for (t = 0; t < T[g].numTracks; t++) for (c = 0; c < T[g][t].clips.numItems; c++) e = Math.max(e, secs(T[g][t].clips[c].end.ticks));
+        return e || secs(seq.end);
+    }
+
     function unlockedTracks(seq) {
+        // faixa vazia fica de fora: o razor nela não muda nada e só custa tempo
         var list = [], t;
         for (t = 0; t < seq.videoTracks.numTracks; t++) {
-            if (!seq.videoTracks[t].isLocked()) list.push({ dom: seq.videoTracks[t], kind: "v", index: t });
+            if (!seq.videoTracks[t].isLocked() && seq.videoTracks[t].clips.numItems) list.push({ dom: seq.videoTracks[t], kind: "v", index: t });
         }
         for (t = 0; t < seq.audioTracks.numTracks; t++) {
-            if (!seq.audioTracks[t].isLocked()) list.push({ dom: seq.audioTracks[t], kind: "a", index: t });
+            if (!seq.audioTracks[t].isLocked() && seq.audioTracks[t].clips.numItems) list.push({ dom: seq.audioTracks[t], kind: "a", index: t });
         }
         return list;
     }
@@ -131,13 +139,14 @@ var WPAutoCut = (function () {
     // mode: "lift" (deixa buracos), "ripple" (fecha os buracos) ou "razor" (só corta).
     // Os cortes vão sempre na sequência aberta; antes, uma cópia "(antes do AutoCut)" fica guardada na pasta
     // "Sharp Frame · desfazer" para o botão Desfazer (o parâmetro backup ficou só por compatibilidade).
-    function cut(regionsJson, mode, backup) {
+    // chained: segunda passagem do mesmo corte. Não cria outra cópia: o Desfazer volta para antes da primeira passagem.
+    function cut(regionsJson, mode, backup, chained) {
         if (mode !== "lift" && mode !== "ripple" && mode !== "razor") return C.fail("Modo inválido: " + mode);
         var regions = eval("(" + regionsJson + ")");
         if (!regions || !regions.length) return C.fail("Nenhum trecho para cortar.");
         var seq = app.project.activeSequence;
         if (!seq) return C.fail("Nenhuma sequência ativa.");
-        var before = secs(seq.end), backupName = C.snapshotActive(LABEL);
+        var before = contentEndOf(seq), backupName = chained === true || chained === "true" ? "(mesma cópia da 1ª passagem)" : C.snapshotActive(LABEL);
         if (!backupName) return C.fail("Não consegui guardar a cópia para desfazer; nada foi cortado.");
         seq = app.project.activeSequence;
         app.enableQE();
@@ -172,7 +181,7 @@ var WPAutoCut = (function () {
             gaps: gaps,
             removed: Math.round(removedSecs * 100) / 100,
             before: Math.round(before * 100) / 100,
-            after: Math.round(secs(seq.end) * 100) / 100,
+            after: Math.round(contentEndOf(seq) * 100) / 100,
             backup: backupName
         });
     }
@@ -186,10 +195,46 @@ var WPAutoCut = (function () {
     }
 
     // nome do projeto e da sequência (o projeto vira o nome padrão do perfil de aprendizado dos Erros de Gravação)
+    // e a duração de um quadro, para a detecção alinhar os cortes ao quadro
     function info() {
         var seq = app.project.activeSequence;
-        return C.out({ ok: true, project: String(app.project.name).replace(/\.prproj$/i, ""), sequence: seq ? seq.name : "" });
+        return C.out({ ok: true, project: String(app.project.name).replace(/\.prproj$/i, ""), sequence: seq ? seq.name : "",
+                       frameSec: seq ? frameDur(seq) : 0 });
     }
 
-    return { tracks: C.tracks, exportAudio: C.exportAudio, cut: C.wrap(cut), undo: C.wrap(undo), info: C.wrap(info) };
+    // Clipes da faixa de referência (ou da 1ª faixa de áudio com clipes), "início,fim;início,fim" em segundos.
+    // A segunda passagem usa para achar lascas sem fala.
+    function clipSpans(track) {
+        var seq = app.project.activeSequence;
+        if (!seq) return C.fail("Nenhuma sequência ativa.");
+        var a = seq.audioTracks, idx = Number(track), t, c, spans = [];
+        if (!(track !== "all" && idx >= 0 && idx < a.numTracks && a[idx].clips.numItems)) {
+            idx = -1;
+            for (t = 0; t < a.numTracks; t++) if (a[t].clips.numItems) { idx = t; break; }
+        }
+        if (idx < 0) return C.out({ ok: true, spans: "" });
+        for (c = 0; c < a[idx].clips.numItems; c++) {
+            var k = a[idx].clips[c];
+            spans.push(secs(k.start.ticks).toFixed(4) + "," + secs(k.end.ticks).toFixed(4));
+        }
+        return C.out({ ok: true, spans: spans.join(";"), track: idx });
+    }
+
+    // Validação: clipes com menos de maxFrames quadros que sobraram em qualquer faixa destravada
+    function shortClips(maxFrames) {
+        var seq = app.project.activeSequence;
+        if (!seq) return C.fail("Nenhuma sequência ativa.");
+        var fd = frameDur(seq), lim = (Number(maxFrames) || 2) * fd - EPS, list = unlockedTracks(seq), n = 0, at = [];
+        for (var i = 0; i < list.length; i++) {
+            var clips = list[i].dom.clips;
+            for (var c = 0; c < clips.numItems; c++) {
+                var s = secs(clips[c].start.ticks), d = secs(clips[c].end.ticks) - s;
+                if (d < lim) { n++; if (at.length < 10) at.push(list[i].kind.toUpperCase() + (list[i].index + 1) + "@" + s.toFixed(2)); }
+            }
+        }
+        return C.out({ ok: true, count: n, at: at.join(" ") });
+    }
+
+    return { tracks: C.tracks, exportAudio: C.exportAudio, cut: C.wrap(cut), undo: C.wrap(undo), info: C.wrap(info),
+             clipSpans: C.wrap(clipSpans), shortClips: C.wrap(shortClips) };
 })();

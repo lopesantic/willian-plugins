@@ -37,6 +37,7 @@
           <span class="note ac-hint">roda do mouse = zoom · arrastar = mover · duplo clique = ver tudo</span>
         </div>
         <div class="summary" id="summary"></div>
+        <div class="note" id="detail"></div>
         <div class="row presets">
           <button data-preset="natural" class="ghost">Natural</button>
           <button data-preset="ritmado" class="ghost">Ritmado</button>
@@ -46,15 +47,28 @@
 
       <section class="card">
         <h2>Ajustes</h2>
-        <label class="field">Limiar <output id="thresholdOut"></output>
+        <label class="field">Limiar de silêncio (dBFS) <output id="thresholdOut"></output>
           <input type="range" id="threshold" min="-60" max="-10" step="1">
         </label>
         <label class="field">Silêncio mínimo <output id="minOut"></output>
           <input type="range" id="min" min="100" max="3000" step="10">
         </label>
-        <label class="field">Folga nas bordas <output id="padOut"></output>
-          <input type="range" id="pad" min="0" max="500" step="10">
+        <label class="field">Margem antes da fala <output id="padBeforeOut"></output>
+          <input type="range" id="padBefore" min="0" max="500" step="10">
         </label>
+        <label class="field">Margem depois da fala <output id="padAfterOut"></output>
+          <input type="range" id="padAfter" min="0" max="500" step="10">
+        </label>
+        <label class="field">Limpeza de resíduos (estalos, ruídos, lascas)
+          <select id="level">
+            <option value="leve">Leve: só estalos bem curtos</option>
+            <option value="normal">Normal</option>
+            <option value="forte">Forte: também ruídos mais longos</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="pass2" checked> Segunda passagem automática (procura o que sobrou depois do corte)</label>
+        <label class="check"><input type="checkbox" id="breaths" checked> Preservar a respiração antes da fala</label>
+        <label class="check"><input type="checkbox" id="micro"> Remover micro-pausas entre palavras (só silêncio total)</label>
         <label class="field">Modo
           <select id="mode">
             <option value="ripple">Fechar os buracos (ripple)</option>
