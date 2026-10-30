@@ -50,3 +50,5 @@ check("palavra fora de pausa fica igual", sn.words[0].start === 0.9 && sn.words[
 check("sem pausas medidas, nada muda", T.snapToPauses([dtw], null).segments[0] === dtw);
 
 
+console.log(String.fromCharCode(10) + pass + " ok, " + fail + " falha(s)");
+process.exit(fail ? 1 : 0);

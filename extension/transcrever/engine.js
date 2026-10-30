@@ -169,28 +169,35 @@
   // ---------- transcrição ----------
 
   // JSON completo do whisper.cpp -> segmentos com palavras. Palavra nova = token que começa com espaço.
+  // O t_dtw (centésimos de segundo) do whisper.cpp marca o FIM do token: a palavra começa no t_dtw do token anterior
+  // e termina no t_dtw do seu último token. MEDIDO 30/10/2026 contra fala sintética com o tempo exato de cada uma
+  // das 238 palavras: lendo o começo no t_dtw do próprio token, erro mediano de 217 ms (64 palavras > 300 ms);
+  // no t_dtw do anterior, 38 ms (1 palavra > 300 ms).
   function parseFull(json) {
-    var segs = [];
+    var segs = [], prevDtw = null;
     (json.transcription || []).forEach(function (s) {
       var words = [], cur = null;
       (s.tokens || []).forEach(function (t) {
         var txt = t.text || "";
         if (/^\[_|^\[[A-Z_]+\]$|^<\|/.test(txt)) return; // tokens especiais
         if (!t.offsets) return;
-        // com DTW ligado, t_dtw (centésimos de segundo) é o instante do token; é bem mais preciso que offsets
-        var t0 = t.t_dtw >= 0 ? t.t_dtw / 100 : t.offsets.from / 1000;
-        var t1 = Math.max(t0, t.offsets.to / 1000);
+        var dtw = t.t_dtw >= 0 ? t.t_dtw / 100 : null;
+        var tEnd = dtw != null ? dtw : t.offsets.to / 1000;
+        // 1º token do trecho: sem fim de token anterior confiável, começa um pouco antes do fim dele
+        var tStart = dtw == null ? t.offsets.from / 1000 : (prevDtw != null && prevDtw <= dtw && dtw - prevDtw < 2 ? prevDtw : Math.max(0, dtw - 0.1));
         if (!cur || /^\s/.test(txt)) {
-          cur = { start: t0, end: t1, text: txt.trim() };
+          cur = { start: tStart, end: Math.max(tStart, tEnd), text: txt.trim() };
           if (cur.text || !words.length) words.push(cur);
         } else {
-          cur.text += txt; cur.end = t1;
+          cur.text += txt; cur.end = Math.max(cur.end, tEnd);
         }
+        if (dtw != null) prevDtw = dtw;
       });
       words = words.filter(function (w) { return w.text; });
-      // cada palavra termina onde começa a próxima (a última, no fim do segmento)
+      // sem sobreposição: a palavra termina no seu fim medido, no máximo onde começa a próxima
       for (var k = 0; k < words.length; k++) {
-        words[k].end = k + 1 < words.length ? Math.max(words[k].start, words[k + 1].start) : Math.max(words[k].start, s.offsets.to / 1000);
+        var nx = k + 1 < words.length ? words[k + 1].start : Math.max(words[k].end, s.offsets.to / 1000);
+        words[k].end = Math.max(words[k].start, Math.min(words[k].end, nx));
       }
       var text = (s.text || "").trim();
       if (!text) return;
