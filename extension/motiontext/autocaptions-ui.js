@@ -125,7 +125,9 @@
   // fontes do estilo, se instaladas; senão as do painel ("Fontes e estilo")
   function fontsOf(st) {
     var S = M.state(), a = S.fonts[0].ps, b = S.fonts[0].ps;
-    if (st.fonts) { if (M.hasFont(st.fonts[0])) a = st.fonts[0]; b = M.hasFont(st.fonts[1]) ? st.fonts[1] : (st.mode === "revelar" ? S.fonts[1].ps : a); }
+    // cada fonte do estilo pode ser uma lista de alternativas: vale a primeira instalada
+    function pick(c) { var l = [].concat(c || []); for (var i = 0; i < l.length; i++) if (M.hasFont(l[i])) return l[i]; return null; }
+    if (st.fonts) { a = pick(st.fonts[0]) || a; b = pick(st.fonts[1]) || (st.mode === "revelar" ? S.fonts[1].ps : a); }
     return [a, b];
   }
   // tamanhos em px no quadro da sequência: estilos "revelar" têm px próprio (num quadro de 1080), os outros usam o painel
@@ -156,6 +158,10 @@
     p["Tracking destaque"] = p["Tracking padrão"];
     p["Contorno"] = st.stroke || 0; if (st.strokeColor) p["Cor do contorno"] = M.rgb(st.strokeColor);
     p["Sombra (%)"] = st.shadow || 0; p["Brilho"] = st.glow || 0;
+    p["Arco (%)"] = st.arc || 0;
+    p["Degradê (%)"] = st.grad || 0;
+    if (st.gradA) p["Degradê cor 1"] = M.rgb(st.gradA);
+    if (st.gradB) p["Degradê cor 2"] = M.rgb(st.gradB);
     p["Caixa (%)"] = st.box || 0;
     if (st.boxColor) p["Cor da caixa"] = M.rgb(st.boxColor);
     if (st.boxRound != null) p["Arredondar caixa"] = st.boxRound;

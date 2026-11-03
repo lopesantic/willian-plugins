@@ -56,6 +56,11 @@ check("a palavra-chave é a de mais peso e fica numa linha só", txt(r0[0]).inde
 check("hierarquia igual em todos os clipes da frase (nada se mexe)", r0.every(function (x) { return JSON.stringify(x.words) === JSON.stringify(r0[0].words); }));
 var rc = A.byId("revCondensada"), ic = A.snapItems(A.items(A.phrases(words, rc), rc, {}), 30).filter(function (x) { return x.phrase === 0; });
 check("Condensada: a palavra falada é a destacada em cada clipe", ic.every(function (x, i) { return x.words[i].lv === 1 && x.words.filter(function (o) { return o.lv; }).length === 1; }), ic.map(txt).join(" | "));
+var ar = A.byId("revArco"), ia = A.snapItems(A.items(A.phrases(words, ar), ar, {}), 30);
+check("Arco: frase de uma linha só, sem destaque", ia.every(function (x) { return x.words.every(function (o) { return !o.br && !o.lv; }); }), ia.slice(0, 3).map(txt).join(" | "));
+check("Arco: frases curtas (até 18 letras)", A.phrases(words, ar).every(function (p) { return p.words.map(function (w) { return w.text; }).join(" ").length <= 18 || p.words.length === 1; }));
+var sf = A.byId("revSerifa"), is = A.snapItems(A.items(A.phrases(words, sf), sf, {}), 30).filter(function (x) { return x.phrase === 0; });
+check("Serifa e degradê: palavra-chave grande numa linha própria", is[0].words.filter(function (o) { return o.lv === 1; }).length === 1, txt(is[0]));
 check("palavra-chave não é artigo nem preposição", A.keyIndex([{ w: "a" }, { w: "de" }, { w: "empresa" }, { w: "de" }]) === 2);
 
 console.log("Texto da fala");

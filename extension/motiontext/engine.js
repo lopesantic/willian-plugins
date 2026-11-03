@@ -197,7 +197,8 @@
     // 3: um template por tamanho de quadro: as fontes viajam no fim do texto (fontTag), não no template
     // 4: degradê/luz no espaço da composição, contorno por trás da letra, sombra e bordas mais fortes
     // 5: "Palavra atual" (Auto legendas): só a palavra k anima, as anteriores ficam paradas e as seguintes escondidas
-    var TEMPLATE_VERSION = "5";
+    // 6: "Arco (%)": texto curvado (uma linha)
+    var TEMPLATE_VERSION = "6";
     function templateName(fontA, fontB, w, h) { return "MT_" + hash([TEMPLATE_VERSION, w, h].join("|")); }
     // "texto" + "§FontePadrão|FonteDestaque" (nomes PostScript): a expressão do template lê e tira esse fim
     function fontTag(text, fontA, fontB) { return untag(text) + "§" + (fontA || "") + "|" + (fontB || fontA || ""); }

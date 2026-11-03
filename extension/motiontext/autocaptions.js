@@ -33,7 +33,16 @@
     { id: "revCondensada", name: "Condensada", desc: "caixa alta condensada, palavra falada em verde", mode: "revelar", hiCurrent: true, words: 4, upper: true, punct: true,
       anim: "wordblur", inDur: 0.15, exit: 2, pad: "#ffffff", hi: "#c8f03c", padPx: 96, hiPx: 96, fonts: ["BebasNeue-Regular", "BebasNeue-Regular"], shadow: 35, pos: 58 },
     { id: "revTres", name: "Três níveis", desc: "palavra no meio, contexto em cima e embaixo", mode: "revelar", hier: true, words: 5, upper: false, punct: true,
-      anim: "wordblur", inDur: 0.15, exit: 2, pad: "#ffffff", hi: "#ffffff", padPx: 44, hiPx: 110, fonts: ["Montserrat-Medium", "Montserrat-SemiBold"], shadow: 40, pos: 45 }
+      anim: "wordblur", inDur: 0.15, exit: 2, pad: "#ffffff", hi: "#ffffff", padPx: 44, hiPx: 110, fonts: ["Montserrat-Medium", "Montserrat-SemiBold"], shadow: 40, pos: 45 },
+    // arco (template v6): uma linha só, curvada; fonts aceita alternativas (a primeira instalada vale)
+    { id: "revArco", name: "Arco", desc: "frase curta curvada em arco", mode: "revelar", words: 3, maxChars: 18, upper: false, punct: false,
+      anim: "wordblur", inDur: 0.15, exit: 2, pad: "#ffffff", hi: "#ffffff", padPx: 76, hiPx: 76, fonts: [["Montserrat-Bold", "Montserrat-SemiBold"], ["Montserrat-Bold"]], shadow: 35, arc: 45, pos: 28 },
+    // itálico com serifa pequeno em cima e a palavra-chave grossa com degradê embaixo (o degradê do template vai de
+    // cima para baixo no bloco: o itálico fica claro e a palavra grande pega o tom azul-acinzentado)
+    { id: "revSerifa", name: "Serifa e degradê", desc: "itálico pequeno e palavra grossa em degradê", mode: "revelar", hier: true, words: 3, upper: false, punct: true,
+      anim: "wordblur", inDur: 0.15, exit: 2, pad: "#ffffff", hi: "#ffffff", padPx: 50, hiPx: 150,
+      fonts: [["PlayfairDisplay-Italic", "Georgia-Italic", "TimesNewRomanPS-ItalicMT"], ["Montserrat-Black", "Montserrat-ExtraBold", "Arial-Black"]],
+      grad: 100, gradA: "#ffffff", gradB: "#5f7f9f", shadow: 30, pos: 40 }
   ];
 
   // palavra de mais peso da frase: a mais longa que não é artigo/preposição (na dúvida, a mais perto do fim)
@@ -119,7 +128,8 @@
       if (mode === "revelar") {
         // frase inteira já no lugar final; o clipe i revela a palavra i (parâmetro Palavra atual = i + 1)
         var hw = st.hier ? hierarchy(base) : base.map(function (x) { return { w: x.w, lv: 0 }; });
-        var lr = o.layout ? o.layout(hw, !!st.hier) : { words: hw, scale: 1 }, rw = lr.words;
+        // arco: sempre uma linha (se não couber, a escala diminui em vez de quebrar)
+        var lr = o.layout ? o.layout(hw, !!st.hier || !!st.arc) : { words: hw, scale: 1 }, rw = lr.words;
         for (var r = 0; r < rw.length; r++) {
           var ra = r === 0 ? ph.start : spoken[r].start, rz = r < rw.length - 1 ? spoken[r + 1].start : ph.end;
           var rs = rw.map(function (x, j) { return { w: x.w, lv: st.hiCurrent ? (j === r ? 1 : 0) : x.lv, br: x.br }; });

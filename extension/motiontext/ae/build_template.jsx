@@ -66,7 +66,9 @@
         // v5 (Auto legendas): palavra k da frase. 0 = desligado (todas animam). k > 0: as antes de k ficam prontas e
         // paradas, a k anima a entrada desde o início do clipe e as depois de k ficam prontas mas invisíveis (o bloco
         // já tem o tamanho final, então nada se mexe quando cada palavra entra)
-        ["MT_Atual", "slider", 0, "Palavra atual"]
+        ["MT_Atual", "slider", 0, "Palavra atual"],
+        // v6: texto em arco (0 = reto). Uma linha só: as pontas descem e giram, o meio fica no alto
+        ["MT_Arco", "slider", 0, "Arco (%)"]
     ];
 
     var H = 'var C = thisComp.layer("MT Controles"); function e(n) { return C.effect(n); }';
@@ -279,6 +281,12 @@
                 addAnimator(anims, "MT " + A.id, props, A.basedOn, selectorExpr(k + 1, A, false));
             }
         }
+        // Arco (v6): u = posição da letra na linha, de -1 a 1. Rotação proporcional a u e descida proporcional a u²,
+        // então as pontas descem girando e o meio fica no alto (o "∩" observado nas legendas de referência). Sem caminho
+        // de máscara: texto em caminho no AE embaralha várias linhas e o arco aqui é sempre de uma linha só.
+        var ARC = H + ' var g = e("MT_Arco")(1) / 100; var u = (textTotal > 1) ? (textIndex - 1) / (textTotal - 1) * 2 - 1 : 0;';
+        addAnimator(anims, "MT arco giro", [["ADBE Text Rotation", 36]], 1, ARC + ' 100 * g * u;');
+        addAnimator(anims, "MT arco curva", [["ADBE Text Position 3D", [0, 140, 0]]], 1, ARC + ' 100 * g * u * u;');
         // Palavra atual (v5): as palavras depois de k ficam invisíveis, só na opacidade (o tamanho do bloco não muda)
         addAnimator(anims, "MT revelar", [["ADBE Text Opacity", 0]], 3,
             H + ' var kk = Math.round(e("MT_Atual")(1)); (kk > 0 && textIndex > kk) ? 100 : 0;');
