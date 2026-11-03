@@ -16,6 +16,7 @@
     <button data-tab="sel" class="ghost active" title="Animar os textos selecionados na timeline">Timeline</button>
     <button data-tab="text" class="ghost" title="Escrever um texto novo e aplicar no cursor">Texto novo</button>
     <button data-tab="combo" class="ghost">Combinações</button>
+    <button data-tab="auto" class="ghost" title="Transcreve a sequência e gera legendas animadas, com a palavra falada em destaque">Auto legendas</button>
     <button data-tab="srt" class="ghost">SRT</button>
     <button data-tab="presets" class="ghost">Presets</button>
   </div>
@@ -129,6 +130,31 @@
     </div>
   </section>
 
+  <!-- ===== auto legendas ===== -->
+  <section class="card tab hidden" id="tab-auto">
+    <div class="row mt-row3">
+      <div class="field"><label>Áudio</label><select id="acTrack"><option value="all">Todas as faixas (mixagem)</option></select></div>
+      <div class="field"><label>Transcrição</label><select id="acMode"><option value="golfinho">Golfinho (rápida)</option><option value="baleia">Baleia (mais precisa)</option></select></div>
+    </div>
+    <div class="field"><label>Estilo</label></div>
+    <div class="mt-grid ac-styles" id="acStyles"></div>
+    <div class="row mt-row3">
+      <div class="field"><label>Palavras por legenda <output id="acWordsOut"></output></label><input type="range" id="acWords" min="1" max="6" step="1"></div>
+      <div class="field"><label>Altura na tela <output id="acPosOut"></output></label><input type="range" id="acPos" min="10" max="90" step="1"></div>
+    </div>
+    <label class="check"><input type="checkbox" id="acUpper"> Caixa alta</label>
+    <label class="check"><input type="checkbox" id="acPunct"> Manter a pontuação</label>
+    <div class="row"><button class="primary" id="acRun">Transcrever e montar</button></div>
+    <div class="progress hidden" id="acProg"><i></i></div>
+    <div class="summary" id="acSummary"></div>
+    <div class="ac-phrases hidden" id="acPhrases"></div>
+    <div class="row">
+      <button class="primary" id="acGo" disabled>Gerar legendas animadas</button>
+      <button class="ghost hidden" id="acCancel">Cancelar</button>
+    </div>
+    <div class="note">Fonte, tamanho e efeitos vêm de "Fontes e estilo"; o estilo escolhido define cores, destaque e animação. Confira um quadro de cada plano: a legenda não pode cobrir rosto (ajuste a Altura).</div>
+  </section>
+
   <!-- ===== SRT ===== -->
   <section class="card tab hidden" id="tab-srt">
     <div class="mt-drop" id="drop">Arraste um .srt aqui ou <a href="#" id="pickSrt">escolha o arquivo</a><input type="file" id="srtFile" accept=".srt" class="hidden"></div>
@@ -237,5 +263,7 @@
   <script src="fonts.js"></script>
   <script src="engine.js"></script>
   <script src="main.js"></script>
+  <script src="autocaptions.js"></script>
+  <script src="autocaptions-ui.js"></script>
 </body>
 </html>

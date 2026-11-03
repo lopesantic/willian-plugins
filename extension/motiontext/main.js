@@ -1379,6 +1379,13 @@
     // gancho para testes automáticos pela porta de depuração (carregar SRT sem arrastar arquivo)
     window.MT_test = { readSrtFile: readSrtFile, state: function () { return S; }, sel: SEL, readSel: readSel, renderSel: renderSel, detectRoles: detectRoles };
 
+    // o que a aba Auto legendas (autocaptions-ui.js) usa daqui: estilo do painel, template e sequência
+    window.MTApi = {
+        E: E, say: say, state: function () { return S; }, seq: function () { return seq; }, tpl: function () { return TPL; },
+        params: params, onlyChanged: onlyChanged, styles: styles, rgb: rgb, clamp: clamp, animIndex: animIndex,
+        ensureTemplate: ensureTemplate, refreshSeq: refreshSeq, save: save
+    };
+
     // ---------- início ----------
     WP.loadHost("motiontext/host.jsx").then(refreshSeq).then(renderStage)
         .then(function () { setTimeout(loadProjectFonts, 600); })

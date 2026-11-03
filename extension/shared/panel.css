@@ -425,3 +425,12 @@ canvas#ruler { width: 100%; height: 90px; }
 .ac-prev-row { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
 .ac-learn { max-height: 180px; overflow-y: auto; font-size: 11.5px; margin: 6px 0; }
 .ac-learn-row { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+
+/* MotionText · Auto legendas */
+.ac-styles .mt-card { padding: 8px; }
+.ac-sample { padding: 8px 6px; border-radius: 6px; background: #1a1d24; text-align: center; font-size: 15px; font-weight: 700; line-height: 1.2; min-height: 22px; }
+.ac-name { font-size: 12px; font-weight: 600; margin-top: 6px; }
+.ac-phrases { max-height: 260px; overflow-y: auto; margin: 8px 0; display: flex; flex-direction: column; gap: 4px; }
+.ac-ph { display: flex; gap: 6px; align-items: center; }
+.ac-ph .ac-t { flex: 0 0 44px; font-size: 10.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.ac-ph input { flex: 1; min-width: 0; padding: 3px 6px; font-size: 12px; }

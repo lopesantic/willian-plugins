@@ -501,6 +501,7 @@ var WPMotion = (function () {
         return C.out({ ok: true, file: file.fsName });
     }
 
-    return { info: C.wrap(info), place: C.wrap(place), placeCombo: C.wrap(placeCombo), update: C.wrap(update), readSelected: C.wrap(readSelected),
+    // tracks/exportAudio: o áudio da sequência para as Auto legendas (mesma função do AutoCut e do Transcrever)
+    return { tracks: C.tracks, exportAudio: C.exportAudio, info: C.wrap(info), place: C.wrap(place), placeCombo: C.wrap(placeCombo), update: C.wrap(update), readSelected: C.wrap(readSelected),
         readGraphics: C.wrap(readGraphics), animateGraphics: C.wrap(animateGraphics), setPos: C.wrap(setPos), frame: C.wrap(frame), exportSeq: C.wrap(exportSeq), setItem: C.wrap(setItem) };
 })();
