@@ -41,6 +41,12 @@ check("Minimal: um clipe por frase, sem destaque e com pontuação", im.every(fu
 var um = A.byId("uma"), iu = A.snapItems(A.items(A.phrases(words, um), um, {}), 30);
 check("Uma palavra: sem sobreposição mesmo com inícios iguais", iu.every(function (x, i) { return !i || x.start >= iu[i - 1].end - 1e-9; }), iu.map(function (x) { return x.start.toFixed(2) + " " + txt(x); }).join(" | "));
 
+console.log("Palavra mais curta que 1 quadro no começo da frase");
+var shortFirst = W([[1.433, 1.440, "A"], [1.440, 1.70, "primeira"], [1.70, 2.0, "frase"]]);
+var isf = A.snapItems(A.items(A.phrases(shortFirst, st), st, {}), 30);
+check("a frase continua entrando com animação", isf.length >= 1 && isf[0].first, isf.map(function (x) { return x.start.toFixed(3) + (x.first ? "[entra]" : "") + " " + txt(x); }).join(" | "));
+check("e começa no tempo da 1ª palavra", Math.abs(isf[0].start - Math.round(1.433 * 30) / 30) < 1e-9, isf[0].start);
+
 console.log("Texto da fala");
 check("marcadores do template não passam da fala", A.clean("a*b_c§d", {}) === "abcd");
 

@@ -106,15 +106,19 @@
 
   // alinha ao quadro como o Premiere faz; um estado mais curto que 1 quadro some e o tempo dele fica com o anterior
   function snapItems(list, fps) {
-    var f = function (t) { return Math.round(t * fps) / fps; }, out = [], q = 1 / fps - 1e-6;
+    var f = function (t) { return Math.round(t * fps) / fps; }, out = [], q = 1 / fps - 1e-6, carry = null;
     list.forEach(function (it) {
       var a = f(it.start), z = f(it.end), prev = out[out.length - 1];
+      // o 1º estado da frase caiu (mais curto que 1 quadro): o seguinte herda o início e a animação de entrada
+      if (carry && carry.phrase === it.phrase) { a = Math.min(a, carry.start); it = Object.assign({}, it, { first: it.first || carry.first }); }
+      carry = null;
       if (prev && a < prev.end) {
         if (prev.phrase === it.phrase || a < prev.start + 1 / fps) a = Math.max(prev.end, prev.start + 1 / fps);
         else prev.end = a;
       }
       if (z - a < q) {
         if (prev && prev.phrase === it.phrase) { prev.end = Math.max(prev.end, z); prev.last = prev.last || it.last; }
+        else carry = { phrase: it.phrase, start: a, first: it.first };
         return;
       }
       out.push({ start: a, end: z, words: it.words, scale: it.scale, phrase: it.phrase, first: it.first, last: it.last });
@@ -125,6 +129,7 @@
   function byId(id) { for (var i = 0; i < STYLES.length; i++) if (STYLES[i].id === id) return STYLES[i]; return STYLES[0]; }
 
   var api = { STYLES: STYLES, byId: byId, clean: clean, wordsOf: wordsOf, phrases: phrases, items: items, snapItems: snapItems };
+  // no CEP a página também tem "module" do Node: exporta para os dois (como o engine.js)
   if (typeof module !== "undefined" && module.exports) module.exports = api;
-  else root.MTAutoCaptions = api;
-})(this);
+  root.MTAutoCaptions = api;
+})(typeof window !== "undefined" ? window : this);
