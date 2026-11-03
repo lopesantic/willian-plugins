@@ -1,5 +1,14 @@
 # MotionText — changelog
 
+## 0.6.0 (Sharp Frame 1.11.0) — 03/11/2026
+- **Auto legendas** (aba nova): transcreve o áudio da sequência, monta frases curtas e coloca as legendas animadas no
+  nosso template, com o tempo real de cada palavra. Lista de frases editável antes de gerar.
+- Estilos karaokê (palavra falada em destaque) e estilos "Revelar", recriados a partir do que as legendas do AutoCut
+  mostram na tela (sem o código dele): a frase já fica no lugar e cada palavra entra com desfoque quando é falada.
+  Palavra gigante, Destaque amarelo, Condensada, Três níveis, Arco e Serifa e degradê.
+- Template v6: controles "Palavra atual" (só a palavra k anima; as anteriores ficam paradas e as seguintes escondidas)
+  e "Arco (%)" (texto curvado). Os 4 templates são refeitos com tools/build-mt-templates.js.
+
 ## 0.5.0 (Sharp Frame 1.9.0) — 29/10/2026
 - **Sem After Effects:** os templates vêm prontos no plugin (motiontext/templates: 1080×1920, 1920×1080, 1080×1080 e 1080×1350
   ). Outro formato usa o de proporção mais próxima, com a escala do clipe ajustada. O painel nunca abre o AE.
