@@ -434,3 +434,9 @@ canvas#ruler { width: 100%; height: 90px; }
 .ac-ph { display: flex; gap: 6px; align-items: center; }
 .ac-ph .ac-t { flex: 0 0 44px; font-size: 10.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .ac-ph input { flex: 1; min-width: 0; padding: 3px 6px; font-size: 12px; }
+
+/* AutoSoundFX · trecho do som */
+.sfx-wave { margin: 8px 0 4px; }
+.sfx-wave canvas { width: 100%; height: 64px; display: block; background: #15171c; border-radius: 6px; cursor: ew-resize; }
+.sfx-wave-info { font-size: 11px; color: var(--muted); margin: 4px 0; font-variant-numeric: tabular-nums; }
+.sfx-wave-acts { gap: 4px; }

@@ -119,9 +119,10 @@ var WPSoundFX = (function () {
             var item = itemFor(bin, rule.path);
             if (!item) { details.push("cor " + rule.color + ": arquivo não encontrado"); continue; }
 
+            // o Premiere lê o ponto em ticks: em segundos (0,5) virava meio tick e o som entrava inteiro (03/11/2026)
             if (rule.inSec !== null && rule.outSec !== null && rule.outSec > rule.inSec) {
-                item.setInPoint(rule.inSec, 4);
-                item.setOutPoint(rule.outSec, 4);
+                item.setInPoint(C.timeAt(rule.inSec).ticks, 4);
+                item.setOutPoint(C.timeAt(rule.outSec).ticks, 4);
             } else {
                 item.clearInPoint();
                 item.clearOutPoint();
