@@ -47,6 +47,17 @@ var isf = A.snapItems(A.items(A.phrases(shortFirst, st), st, {}), 30);
 check("a frase continua entrando com animação", isf.length >= 1 && isf[0].first, isf.map(function (x) { return x.start.toFixed(3) + (x.first ? "[entra]" : "") + " " + txt(x); }).join(" | "));
 check("e começa no tempo da 1ª palavra", Math.abs(isf[0].start - Math.round(1.433 * 30) / 30) < 1e-9, isf[0].start);
 
+console.log("Revelar (frase no lugar, uma palavra entra por vez)");
+var rv = A.byId("revGigante"), ir = A.snapItems(A.items(A.phrases(words, rv), rv, {}), 30), r0 = ir.filter(function (x) { return x.phrase === 0; });
+check("um clipe por palavra, cada um com a frase inteira", r0.length === 4 && r0.every(function (x) { return x.words.length === 4; }), r0.map(txt).join(" | "));
+check("Palavra atual vai de 1 até o número de palavras", r0.map(function (x) { return x.k; }).join() === "1,2,3,4", r0.map(function (x) { return x.k; }).join());
+check("todo clipe anima (só a palavra k, pelo template) e só o último sai", r0.every(function (x) { return x.first; }) && r0.filter(function (x) { return x.last; }).length === 1 && r0[3].last);
+check("a palavra-chave é a de mais peso e fica numa linha só", txt(r0[0]).indexOf("*certo.*") >= 0 && r0[0].words[2].br && !r0[0].words[3].br, JSON.stringify(r0[0].words));
+check("hierarquia igual em todos os clipes da frase (nada se mexe)", r0.every(function (x) { return JSON.stringify(x.words) === JSON.stringify(r0[0].words); }));
+var rc = A.byId("revCondensada"), ic = A.snapItems(A.items(A.phrases(words, rc), rc, {}), 30).filter(function (x) { return x.phrase === 0; });
+check("Condensada: a palavra falada é a destacada em cada clipe", ic.every(function (x, i) { return x.words[i].lv === 1 && x.words.filter(function (o) { return o.lv; }).length === 1; }), ic.map(txt).join(" | "));
+check("palavra-chave não é artigo nem preposição", A.keyIndex([{ w: "a" }, { w: "de" }, { w: "empresa" }, { w: "de" }]) === 2);
+
 console.log("Texto da fala");
 check("marcadores do template não passam da fala", A.clean("a*b_c§d", {}) === "abcd");
 

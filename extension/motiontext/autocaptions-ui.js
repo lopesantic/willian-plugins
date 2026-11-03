@@ -25,13 +25,15 @@
       card.className = "mt-card" + (s.id === ST.style ? " active" : "");
       var sample = ["vai", "dar", "certo"].map(function (w, i) {
         var t = s.upper ? w.toUpperCase() : w, on = s.mode !== "frase" && (i === 1 || (s.keepPast && i < 1));
-        return "<span style=\"color:" + (on ? s.hi : s.pad) + (on && s.hiScale > 1 ? ";font-size:1.15em" : "") + (on && s.glow ? ";text-shadow:0 0 8px " + s.hi : "") + "\">" + t + "</span>";
+        var big = on && (s.hier ? ";font-size:1.6em;display:block" : (s.hiScale > 1 ? ";font-size:1.15em" : ""));
+        return "<span style=\"color:" + (on ? s.hi : s.pad) + (big || "") + (on && s.glow ? ";text-shadow:0 0 8px " + s.hi : "") + "\">" + t + "</span>";
       }).join(" ");
       card.innerHTML = "<div class=\"ac-sample\" style=\"font-family:'" + fam + "';" + (s.box ? "background:" + s.boxColor + ";" : "") +
         (s.stroke ? "-webkit-text-stroke:1px " + (s.strokeColor || "#000") + ";" : "") + "\">" + sample + "</div>" +
         "<div class=\"ac-name\">" + s.name + "</div><div class=\"note\">" + s.desc + "</div>";
       card.addEventListener("click", function () {
-        ST.style = s.id; ST.words = s.words; ST.upper = s.upper; ST.punct = s.punct; persist(); syncControls(); renderStyles(); rebuild();
+        ST.style = s.id; ST.words = s.words; ST.upper = s.upper; ST.punct = s.punct; if (s.pos) ST.pos = s.pos;
+        persist(); syncControls(); renderStyles(); rebuild();
       });
       box.appendChild(card);
     });
@@ -120,18 +122,37 @@
   }
 
   // ---------- itens e parâmetros do template ----------
+  // fontes do estilo, se instaladas; senão as do painel ("Fontes e estilo")
+  function fontsOf(st) {
+    var S = M.state(), a = S.fonts[0].ps, b = S.fonts[0].ps;
+    if (st.fonts) { if (M.hasFont(st.fonts[0])) a = st.fonts[0]; b = M.hasFont(st.fonts[1]) ? st.fonts[1] : (st.mode === "revelar" ? S.fonts[1].ps : a); }
+    return [a, b];
+  }
+  // tamanhos em px no quadro da sequência: estilos "revelar" têm px próprio (num quadro de 1080), os outros usam o painel
+  function sizesOf(st) {
+    var S = M.state(), kx = (M.seq().w || 1080) / 1080;
+    if (st.padPx) return [st.padPx * kx, st.hiPx * kx];
+    return [S.fonts[0].size, S.fonts[0].size * (st.hiScale || 1)];
+  }
   function items() {
-    var st = style(), S = M.state(), sq = M.seq(), base = M.styles(), hi = st.hiScale || 1;
-    var big = { family: base.styles[0].family, size: S.fonts[0].size * Math.max(1, hi), tracking: S.fonts[0].tracking };
-    var meas = { styles: [big, big, big], wordSpace: base.wordSpace, maxWidth: base.maxWidth };
-    var layout = function (ws) { var l = E.layout(ws, meas, false); return { words: l.words, scale: E.layout(l.words, meas, true).scale }; };
+    var st = style(), S = M.state(), sq = M.seq(), base = M.styles(), f = fontsOf(st), sz = sizesOf(st);
+    var lv0 = { family: M.cssFamily(f[0]), size: sz[0], tracking: S.fonts[0].tracking };
+    var lv1 = { family: M.cssFamily(f[1]), size: sz[1], tracking: S.fonts[0].tracking };
+    // karaokê mede tudo no tamanho maior (a palavra da vez muda de nível sem mexer nas quebras)
+    var meas = { styles: st.mode === "revelar" ? [lv0, lv1, lv0] : [lv1, lv1, lv1], wordSpace: base.wordSpace, maxWidth: base.maxWidth };
+    var layout = function (ws, keep) {
+      var l = keep ? E.layout(ws, meas, true) : E.layout(ws, meas, false);
+      return { words: l.words, scale: E.layout(l.words, meas, true).scale };
+    };
     return A.snapItems(A.items(phs, st, { layout: layout }), sq.fps || 30);
   }
   function paramsFor(st) {
     var p = M.params(1), S = M.state();
+    var sz = sizesOf(st);
     p["Animação"] = M.animIndex(st.anim); p["Saída"] = st.exit;
     p["Cor padrão"] = M.rgb(st.pad); p["Cor destaque"] = M.rgb(st.hi);
-    p["Tamanho destaque"] = M.clamp(p["Tamanho padrão"] * (st.hiScale || 1));
+    p["Tamanho padrão"] = M.clamp(sz[0] / 2); p["Tamanho destaque"] = M.clamp(sz[1] / 2);
+    if (st.inDur) p["Duração da entrada (s)"] = st.inDur;
     p["Tracking destaque"] = p["Tracking padrão"];
     p["Contorno"] = st.stroke || 0; if (st.strokeColor) p["Cor do contorno"] = M.rgb(st.strokeColor);
     p["Sombra (%)"] = st.shadow || 0; p["Brilho"] = st.glow || 0;
@@ -152,7 +173,7 @@
     if (list.length > 400 && !confirm("Vão entrar " + list.length + " clipes numa faixa de vídeo. Continuar?")) return;
     var CHUNK = 25, done = 0, placed = 0, failed = 0, track = null, t0 = performance.now();
     cancel = false; setBusy(true); $("acCancel").classList.remove("hidden"); prog(0);
-    var base = M.onlyChanged(paramsFor(st)), padSize = S.fonts[0].size, hi = st.hiScale || 1;
+    var base = M.onlyChanged(paramsFor(st)), sz = sizesOf(st), fz = fontsOf(st);
     var reserve = list.map(function (x) { return [x.start, x.end]; });
     return M.ensureTemplate().then(function (mogrt) {
       function next() {
@@ -161,8 +182,9 @@
           var own = {};
           if (!x.first) own["Animação"] = none;
           if (!x.last) own["Saída"] = 0;
-          if (x.scale < 0.999) { own["Tamanho padrão"] = M.clamp(padSize * x.scale / 2); own["Tamanho destaque"] = M.clamp(padSize * hi * x.scale / 2); }
-          return { start: x.start, end: x.end, text: E.fontTag(E.toMarkup(x.words), S.fonts[0].ps, S.fonts[0].ps), params: own };
+          if (x.k) own["Palavra atual"] = x.k;   // estilos "revelar": só esta palavra anima (template v5)
+          if (x.scale < 0.999) { own["Tamanho padrão"] = M.clamp(sz[0] * x.scale / 2); own["Tamanho destaque"] = M.clamp(sz[1] * x.scale / 2); }
+          return { start: x.start, end: x.end, text: E.fontTag(E.toMarkup(x.words), fz[0], fz[1]), params: own };
         });
         var cfg = { mogrt: mogrt.replace(/\\/g, "/"), baseScale: M.tpl().scale, params: base, track: track, newTrack: track === null,
                     reserve: track === null ? reserve : null, items: chunk };

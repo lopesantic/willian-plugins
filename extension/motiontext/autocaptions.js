@@ -22,8 +22,38 @@
     { id: "minimal", name: "Minimal", desc: "frase limpa, sem destaque", mode: "frase", words: 5, upper: false, punct: true,
       anim: "fade", exit: 2, pad: "#ffffff", hi: "#ffffff", hiScale: 1.0, stroke: 0, shadow: 55 },
     { id: "porPalavra", name: "Entrada por palavra", desc: "cada palavra entra quando é falada", mode: "entrada", words: 4, upper: true, punct: false,
-      anim: "pop", exit: 2, pad: "#ffffff", hi: "#ffd400", hiScale: 1.0, stroke: 4, strokeColor: "#000000", shadow: 30 }
+      anim: "pop", exit: 2, pad: "#ffffff", hi: "#ffd400", hiScale: 1.0, stroke: 4, strokeColor: "#000000", shadow: 30 },
+    // "Revelar" (03/11/2026): recriados a partir do que o AutoCut desenha na tela (observado quadro a quadro, sem o
+    // código dele). A frase inteira já vem no lugar final e cada palavra entra com desfoque quando é falada; a
+    // palavra de mais peso vai grande numa linha só dela. padPx/hiPx: tamanho em px num quadro de 1080 de largura.
+    { id: "revGigante", name: "Palavra gigante", desc: "contexto pequeno, palavra-chave enorme", mode: "revelar", hier: true, words: 4, upper: false, punct: true,
+      anim: "wordblur", inDur: 0.15, exit: 2, pad: "#ffffff", hi: "#ffffff", padPx: 50, hiPx: 150, fonts: ["Montserrat-Bold", "Montserrat-Black"], shadow: 35, pos: 50 },
+    { id: "revAmarelo", name: "Destaque amarelo", desc: "frase pequena e a palavra-chave em amarelo", mode: "revelar", hier: true, words: 4, upper: false, punct: true,
+      anim: "wordblur", inDur: 0.15, exit: 2, pad: "#ffffff", hi: "#ffe45c", padPx: 54, hiPx: 96, fonts: ["Montserrat-Bold", "Montserrat-Black"], shadow: 30, pos: 78 },
+    { id: "revCondensada", name: "Condensada", desc: "caixa alta condensada, palavra falada em verde", mode: "revelar", hiCurrent: true, words: 4, upper: true, punct: true,
+      anim: "wordblur", inDur: 0.15, exit: 2, pad: "#ffffff", hi: "#c8f03c", padPx: 96, hiPx: 96, fonts: ["BebasNeue-Regular", "BebasNeue-Regular"], shadow: 35, pos: 58 },
+    { id: "revTres", name: "Três níveis", desc: "palavra no meio, contexto em cima e embaixo", mode: "revelar", hier: true, words: 5, upper: false, punct: true,
+      anim: "wordblur", inDur: 0.15, exit: 2, pad: "#ffffff", hi: "#ffffff", padPx: 44, hiPx: 110, fonts: ["Montserrat-Medium", "Montserrat-SemiBold"], shadow: 40, pos: 45 }
   ];
+
+  // palavra de mais peso da frase: a mais longa que não é artigo/preposição (na dúvida, a mais perto do fim)
+  var STOP = ("a o as os e é de da do das dos em no na nos nas um uma uns umas para pra pro com por que se ao à aos às ou mas " +
+    "eu tu ele ela nós me te lhe isso isto esse essa este esta meu minha seu sua the of to and in on is it at").split(" ");
+  function keyIndex(ws) {
+    var best = 0, bs = -1e9;
+    ws.forEach(function (o, i) {
+      var n = o.w.toLowerCase().replace(/[^a-zà-ÿ0-9]/g, ""), s = n.length + i * 0.3;
+      if (STOP.indexOf(n) >= 0) s -= 20;
+      if (/^\d/.test(n)) s += 4;
+      if (s >= bs) { bs = s; best = i; }
+    });
+    return best;
+  }
+  // a palavra-chave numa linha só dela: quebra antes dela e depois dela
+  function hierarchy(ws) {
+    var k = keyIndex(ws);
+    return ws.map(function (o, i) { return { w: o.w, lv: i === k ? 1 : 0, br: (i === k - 1 || i === k) && i < ws.length - 1 }; });
+  }
 
   // ---------- texto ----------
   var PUNCT = /[.,;:!?…"“”'‘’()\[\]]/g;
@@ -86,6 +116,17 @@
       base = base.filter(function (x) { return x.w; });
       var spoken = ph.words.filter(function (w, k) { return keep[k]; });
       if (!base.length) return;
+      if (mode === "revelar") {
+        // frase inteira já no lugar final; o clipe i revela a palavra i (parâmetro Palavra atual = i + 1)
+        var hw = st.hier ? hierarchy(base) : base.map(function (x) { return { w: x.w, lv: 0 }; });
+        var lr = o.layout ? o.layout(hw, !!st.hier) : { words: hw, scale: 1 }, rw = lr.words;
+        for (var r = 0; r < rw.length; r++) {
+          var ra = r === 0 ? ph.start : spoken[r].start, rz = r < rw.length - 1 ? spoken[r + 1].start : ph.end;
+          var rs = rw.map(function (x, j) { return { w: x.w, lv: st.hiCurrent ? (j === r ? 1 : 0) : x.lv, br: x.br }; });
+          out.push({ start: ra, end: Math.max(rz, ra), words: rs, scale: lr.scale, phrase: pi, first: true, last: r === rw.length - 1, k: r + 1 });
+        }
+        return;
+      }
       var lay = o.layout ? o.layout(base) : { words: base, scale: 1 };
       var ws = lay.words;
       if (mode === "frase" || (ws.length === 1 && mode !== "entrada")) {
@@ -121,14 +162,14 @@
         else carry = { phrase: it.phrase, start: a, first: it.first };
         return;
       }
-      out.push({ start: a, end: z, words: it.words, scale: it.scale, phrase: it.phrase, first: it.first, last: it.last });
+      out.push({ start: a, end: z, words: it.words, scale: it.scale, phrase: it.phrase, first: it.first, last: it.last, k: it.k });
     });
     return out.filter(function (it) { return it.end - it.start >= q; });
   }
 
   function byId(id) { for (var i = 0; i < STYLES.length; i++) if (STYLES[i].id === id) return STYLES[i]; return STYLES[0]; }
 
-  var api = { STYLES: STYLES, byId: byId, clean: clean, wordsOf: wordsOf, phrases: phrases, items: items, snapItems: snapItems };
+  var api = { STYLES: STYLES, byId: byId, clean: clean, wordsOf: wordsOf, phrases: phrases, items: items, snapItems: snapItems, keyIndex: keyIndex, hierarchy: hierarchy };
   // no CEP a página também tem "module" do Node: exporta para os dois (como o engine.js)
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.MTAutoCaptions = api;

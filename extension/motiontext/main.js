@@ -278,7 +278,8 @@
         "Contorno": 0, "Cor do contorno": [0, 0, 0], "Sombra (%)": 0,
         "Perman\u00eancia": 0, "For\u00e7a da perman\u00eancia": 30, "Degrad\u00ea (%)": 0, "Degrad\u00ea cor 1": [1, 1, 1], "Degrad\u00ea cor 2": [0.55, 0.55, 0.6],
         "Brilho": 0, "Raio do brilho": 30, "Relevo": 0, "Bordas org\u00e2nicas": 0, "Luz passando": 0,
-        "Caixa (%)": 0, "Cor da caixa": [0.93, 0.28, 0.6], "Arredondar caixa": 40, "Margem da caixa": 30, "Sublinhado": 0, "Cor do sublinhado": [1, 0.55, 0.1]
+        "Caixa (%)": 0, "Cor da caixa": [0.93, 0.28, 0.6], "Arredondar caixa": 40, "Margem da caixa": 30, "Sublinhado": 0, "Cor do sublinhado": [1, 0.55, 0.1],
+        "Palavra atual": 0
     };
     function onlyChanged(p) {
         var out = {};
@@ -1383,7 +1384,8 @@
     window.MTApi = {
         E: E, say: say, state: function () { return S; }, seq: function () { return seq; }, tpl: function () { return TPL; },
         params: params, onlyChanged: onlyChanged, styles: styles, rgb: rgb, clamp: clamp, animIndex: animIndex,
-        ensureTemplate: ensureTemplate, refreshSeq: refreshSeq, save: save
+        ensureTemplate: ensureTemplate, refreshSeq: refreshSeq, save: save,
+        cssFamily: cssFamily, hasFont: function (ps) { return !!byPs[ps]; }
     };
 
     // ---------- início ----------

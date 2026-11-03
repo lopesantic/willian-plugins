@@ -62,12 +62,19 @@
         ["MT_Arred", "slider", 40, "Arredondar caixa"],
         ["MT_Margem", "slider", 30, "Margem da caixa"],
         ["MT_Linha", "slider", 0, "Sublinhado"],
-        ["MT_CorLinha", "color", [1, 0.55, 0.1], "Cor do sublinhado"]
+        ["MT_CorLinha", "color", [1, 0.55, 0.1], "Cor do sublinhado"],
+        // v5 (Auto legendas): palavra k da frase. 0 = desligado (todas animam). k > 0: as antes de k ficam prontas e
+        // paradas, a k anima a entrada desde o início do clipe e as depois de k ficam prontas mas invisíveis (o bloco
+        // já tem o tamanho final, então nada se mexe quando cada palavra entra)
+        ["MT_Atual", "slider", 0, "Palavra atual"]
     ];
 
     var H = 'var C = thisComp.layer("MT Controles"); function e(n) { return C.effect(n); }';
     // instante em que o texto está inteiro na tela (para medir o tamanho do bloco)
-    var TFULL = 'var tf = Math.max(0, e("MT_Dur")(1) - e("MT_SaiDur")(1) - 0.05);';
+    // Palavra atual (v5): mede logo depois da entrada da palavra k; num clipe curto (palavra rápida) o "quase fim" caía no
+    // meio da entrada e o bloco se recentralizava a cada palavra (MEDIDO 03/11/2026: pulo de ~27 px no clipe de 0,2 s)
+    var TFULL = 'var tf = Math.max(0, e("MT_Dur")(1) - e("MT_SaiDur")(1) - 0.05);' +
+        ' if (Math.round(e("MT_Atual")(1)) > 0) tf = e("MT_EntDur")(1) + 0.02;';
     // fator de saída (1 = visível, 0 = saiu) para camadas que acompanham o texto
     var EXITF = 'var D = e("MT_Dur")(1), od = Math.max(0.01, e("MT_SaiDur")(1)), sm = Math.round(e("MT_Saida")(1));' +
         ' var xf = (time > D) ? 0 : ((sm == 1) ? 1 : Math.min(1, Math.max(0, (D - time) / od)));';
@@ -92,6 +99,9 @@
             '  var I = e("MT_Intens")(1) / 100;',
             '  var st = e("MT_Atraso")(1) * ' + a.stagger + ', dur = Math.max(0.01, e("MT_EntDur")(1));',
             '  var p = Math.min(1, Math.max(0, (time - (textIndex - 1) * st) / dur));',
+            // Palavra atual (v5): só nas animações por palavra o índice é a palavra; nas outras, nada anima
+            '  var kk = Math.round(e("MT_Atual")(1));',
+            '  if (kk > 0) p = ' + (a.basedOn === 3 ? '(textIndex == kk) ? Math.min(1, Math.max(0, time / dur)) : 1' : '1') + ';',
             '  var v = ' + EASE[a.ease] + ';',
             '  var D = e("MT_Dur")(1), od = Math.max(0.01, e("MT_SaiDur")(1));',
             '  if (Math.round(e("MT_Saida")(1)) == 2) { var qo = Math.min(1, Math.max(0, (D - time) / od)); v = Math.min(v, 1 - Math.pow(1 - qo, 3)); }',
@@ -156,7 +166,8 @@
 
     function buildOne(spec) {
         app.newProject();
-        var comp = app.project.items.addComp(spec.name, J.width, J.height, 1, 60, 30);
+        // cada job pode ter o próprio tamanho (os 4 templates do plugin saem numa abertura só do AE)
+        var comp = app.project.items.addComp(spec.name, spec.width || J.width, spec.height || J.height, 1, 60, 30);
         comp.motionGraphicsTemplateName = spec.name;
 
         // camada de controles (guia, invisível no render)
@@ -268,6 +279,9 @@
                 addAnimator(anims, "MT " + A.id, props, A.basedOn, selectorExpr(k + 1, A, false));
             }
         }
+        // Palavra atual (v5): as palavras depois de k ficam invisíveis, só na opacidade (o tamanho do bloco não muda)
+        addAnimator(anims, "MT revelar", [["ADBE Text Opacity", 0]], 3,
+            H + ' var kk = Math.round(e("MT_Atual")(1)); (kk > 0 && textIndex > kk) ? 100 : 0;');
         // permanência (depois da entrada, enquanto o texto está na tela)
         if (!spec.noHolds) {
         var PH = H + ' var m = Math.round(e("MT_Perm")(1)), F = e("MT_PermInt")(1) / 100;';

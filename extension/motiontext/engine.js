@@ -196,7 +196,8 @@
     // 2: estilos e animações recriados (degradê, brilho, caixa, sublinhado, permanência...)
     // 3: um template por tamanho de quadro: as fontes viajam no fim do texto (fontTag), não no template
     // 4: degradê/luz no espaço da composição, contorno por trás da letra, sombra e bordas mais fortes
-    var TEMPLATE_VERSION = "4";
+    // 5: "Palavra atual" (Auto legendas): só a palavra k anima, as anteriores ficam paradas e as seguintes escondidas
+    var TEMPLATE_VERSION = "5";
     function templateName(fontA, fontB, w, h) { return "MT_" + hash([TEMPLATE_VERSION, w, h].join("|")); }
     // "texto" + "§FontePadrão|FonteDestaque" (nomes PostScript): a expressão do template lê e tira esse fim
     function fontTag(text, fontA, fontB) { return untag(text) + "§" + (fontA || "") + "|" + (fontB || fontA || ""); }
@@ -221,7 +222,8 @@
         var dest = path.join(DATA, "templates", "MT_" + t.w + "x" + t.h + "_v" + TEMPLATE_VERSION + ".mogrt");
         fs.mkdirSync(path.dirname(dest), { recursive: true });
         var need = true;
-        try { need = fs.statSync(dest).size !== fs.statSync(t.file).size; } catch (e2) {}
+        // tamanho ou data diferentes: um template refeito pode ter o mesmo tamanho do anterior
+        try { var sd = fs.statSync(dest), ss = fs.statSync(t.file); need = sd.size !== ss.size || sd.mtimeMs < ss.mtimeMs; } catch (e2) {}
         if (need) fs.copyFileSync(t.file, dest);
         var scale = exact ? 100 : Math.round(Math.min(w / t.w, h / t.h) * 10000) / 100;
         return { path: dest, scale: scale, w: t.w, h: t.h, exact: exact };
